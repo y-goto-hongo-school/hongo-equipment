@@ -1,0 +1,1670 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>本郷学園 備品管理システム</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --cobalt:#1a4a8a;--cobalt-dark:#0f2d5c;--cobalt-mid:#2a5fa8;--cobalt-light:#4a7fc1;
+  --cobalt-pale:#e8f0fa;--cobalt-ghost:#f0f5fc;
+  --gray-50:#f8f9fc;--gray-100:#f0f2f7;--gray-200:#e2e6ef;
+  --gray-400:#9aa3b5;--gray-600:#5a6378;--gray-800:#2c3347;
+  --success:#2e7d52;--success-light:#e8f5ee;
+  --warning:#b85c00;--warning-light:#fff3e0;
+  --danger:#c0392b;--danger-light:#fdecea;
+  --shadow-sm:0 1px 4px rgba(26,74,138,.08);
+  --shadow-md:0 4px 16px rgba(26,74,138,.12);
+  --shadow-lg:0 8px 32px rgba(26,74,138,.16);
+  --radius:12px;--radius-sm:8px;--radius-lg:20px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(--gray-800);min-height:100vh;font-size:14px;}
+
+.header{background:linear-gradient(135deg,var(--cobalt-dark) 0%,var(--cobalt) 60%,var(--cobalt-mid) 100%);color:#fff;padding:0 20px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:var(--shadow-lg);}
+.header-logo{display:flex;align-items:center;gap:12px;}
+.logo-emblem{width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.header-title{display:flex;flex-direction:column;line-height:1.25;}
+.header-title .school{font-family:'Noto Serif JP',serif;font-size:10px;opacity:.75;letter-spacing:.08em;}
+.header-title .system{font-size:15px;font-weight:700;letter-spacing:.02em;}
+.header-right{display:flex;align-items:center;gap:10px;}
+.notif-btn{position:relative;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:17px;transition:background .2s;}
+.notif-btn:hover{background:rgba(255,255,255,.22);}
+.notif-badge{position:absolute;top:-3px;right:-3px;background:#e74c3c;color:#fff;font-size:9px;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid var(--cobalt-dark);}
+.notif-btn.hidden{display:none;}
+.user-info{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:32px;padding:5px 12px 5px 6px;cursor:pointer;transition:background .2s;}
+.user-info:hover{background:rgba(255,255,255,.22);}
+.user-avatar{width:28px;height:28px;background:#c8a84b;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--cobalt-dark);}
+.user-name{font-size:13px;font-weight:600;}
+
+.app-container{max-width:960px;margin:0 auto;padding:20px 16px 88px;}
+.screen{display:none;}
+.screen.active{display:block;animation:fadeIn .25s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+.page-header{margin-bottom:20px;}
+.breadcrumb{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray-400);margin-bottom:6px;}
+.breadcrumb span{cursor:pointer;transition:color .2s;}
+.breadcrumb span:hover{color:var(--cobalt);}
+.breadcrumb .sep{color:var(--gray-200);}
+.breadcrumb .current{color:var(--gray-600);cursor:default;}
+.page-title{font-family:'Noto Serif JP',serif;font-size:21px;font-weight:700;color:var(--cobalt-dark);letter-spacing:.02em;}
+.page-subtitle{font-size:12px;color:var(--gray-400);margin-top:4px;}
+.back-btn{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--cobalt);cursor:pointer;padding:6px 12px;border-radius:var(--radius-sm);border:1.5px solid var(--cobalt-pale);background:#fff;margin-bottom:14px;transition:all .2s;font-weight:500;font-family:inherit;}
+.back-btn:hover{background:var(--cobalt-ghost);}
+.section-title{font-size:12px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.section-title::after{content:'';flex:1;height:1px;background:var(--gray-200);}
+
+/* HOME */
+.home-hero{background:linear-gradient(135deg,var(--cobalt-dark),var(--cobalt-mid));border-radius:var(--radius-lg);padding:28px 28px 24px;color:#fff;margin-bottom:20px;position:relative;overflow:hidden;cursor:pointer;transition:filter .2s;}
+.home-hero:hover{filter:brightness(1.06);}
+.home-hero::before{content:'';position:absolute;right:-40px;top:-40px;width:200px;height:200px;background:rgba(255,255,255,.04);border-radius:50%;}
+.hero-greeting{font-size:12px;opacity:.72;margin-bottom:4px;font-weight:300;}
+.hero-name{font-family:'Noto Serif JP',serif;font-size:22px;font-weight:700;margin-bottom:16px;}
+.hero-name span{font-size:14px;font-weight:400;opacity:.8;margin-left:4px;}
+.hero-stats{display:flex;gap:12px;flex-wrap:wrap;}
+.hero-stat{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2);border-radius:var(--radius-sm);padding:10px 16px;backdrop-filter:blur(4px);}
+.hero-stat .num{font-size:22px;font-weight:700;line-height:1;}
+.hero-stat .label{font-size:10px;opacity:.75;margin-top:3px;}
+.hero-stat.warn{background:rgba(184,92,0,.3);border-color:rgba(184,92,0,.5);}
+.hero-stat.alert{background:rgba(192,57,43,.3);border-color:rgba(192,57,43,.5);}
+.hero-hint{font-size:11px;opacity:.55;margin-top:12px;}
+
+.overdue-banner{background:var(--danger-light);border:1.5px solid var(--danger);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;display:none;align-items:center;gap:12px;}
+.overdue-banner.show{display:flex;}
+.ob-icon{font-size:22px;flex-shrink:0;}
+.ob-text{flex:1;font-size:13px;color:var(--danger);font-weight:600;line-height:1.5;}
+
+.action-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;}
+.action-card{background:#fff;border-radius:var(--radius);padding:20px 16px;cursor:pointer;border:1.5px solid var(--gray-200);transition:all .2s;display:flex;align-items:center;gap:14px;box-shadow:var(--shadow-sm);}
+.action-card:hover{border-color:var(--cobalt-light);box-shadow:var(--shadow-md);transform:translateY(-2px);}
+.action-card.primary{background:linear-gradient(135deg,var(--cobalt),var(--cobalt-mid));border-color:transparent;color:#fff;}
+.action-card.disabled{opacity:.42;cursor:not-allowed;pointer-events:none;}
+.action-icon{width:44px;height:44px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.action-card.primary .action-icon{background:rgba(255,255,255,.18);}
+.action-card:not(.primary) .action-icon{background:var(--cobalt-ghost);}
+.action-info{flex:1;}
+.action-title{font-size:14px;font-weight:700;margin-bottom:2px;}
+.action-desc{font-size:11px;opacity:.65;}
+.action-arrow{font-size:18px;opacity:.45;}
+
+.loan-card{background:#fff;border-radius:var(--radius);padding:14px 16px;border:1.5px solid var(--gray-200);margin-bottom:8px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow-sm);transition:all .2s;cursor:pointer;}
+.loan-card:hover{box-shadow:var(--shadow-md);border-color:var(--cobalt-light);}
+.loan-icon{width:40px;height:40px;background:var(--cobalt-ghost);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.loan-info{flex:1;min-width:0;}
+.loan-name{font-size:13px;font-weight:700;color:var(--cobalt-dark);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.loan-meta{font-size:11px;color:var(--gray-400);}
+.loan-status{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;}
+.badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;}
+.badge.active{background:var(--cobalt-pale);color:var(--cobalt);}
+.badge.due-soon{background:var(--warning-light);color:var(--warning);}
+.badge.overdue{background:var(--danger-light);color:var(--danger);}
+.badge.returned{background:var(--success-light);color:var(--success);}
+.return-btn{font-size:11px;font-weight:700;padding:4px 10px;background:var(--cobalt);color:#fff;border:none;border-radius:20px;cursor:pointer;transition:background .2s;font-family:inherit;}
+.return-btn:hover{background:var(--cobalt-dark);}
+.item-number{font-size:10px;font-weight:700;background:var(--cobalt-ghost);color:var(--cobalt);padding:2px 7px;border-radius:10px;margin-left:5px;}
+
+/* CATEGORIES */
+.category-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+.category-card{background:#fff;border-radius:var(--radius);padding:18px 16px;cursor:pointer;border:1.5px solid var(--gray-200);transition:all .2s;box-shadow:var(--shadow-sm);position:relative;overflow:hidden;}
+.category-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--cobalt-light);border-radius:4px 0 0 4px;opacity:0;transition:opacity .2s;}
+.category-card:hover{border-color:var(--cobalt-light);box-shadow:var(--shadow-md);transform:translateY(-2px);}
+.category-card:hover::before{opacity:1;}
+.category-icon{font-size:26px;margin-bottom:8px;display:block;}
+.category-name{font-size:14px;font-weight:700;color:var(--cobalt-dark);margin-bottom:3px;}
+.category-count{font-size:11px;color:var(--gray-400);}
+.category-available{font-size:11px;font-weight:700;color:var(--success);margin-top:5px;}
+
+/* ITEMS */
+.sub-category-tabs{display:flex;gap:7px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px;}
+.tab{padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;border:1.5px solid var(--gray-200);background:#fff;color:var(--gray-600);transition:all .2s;font-family:inherit;}
+.tab.active{background:var(--cobalt);color:#fff;border-color:var(--cobalt);}
+.tab:hover:not(.active){border-color:var(--cobalt-light);color:var(--cobalt);}
+.item-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+.item-card{background:#fff;border-radius:var(--radius);padding:16px;border:1.5px solid var(--gray-200);box-shadow:var(--shadow-sm);transition:all .2s;cursor:pointer;}
+.item-card:hover{border-color:var(--cobalt-light);box-shadow:var(--shadow-md);transform:translateY(-2px);}
+.item-card.unavailable{opacity:.65;cursor:default;}
+.item-card.unavailable:hover{transform:none;box-shadow:var(--shadow-sm);border-color:var(--gray-200);}
+.item-name{font-size:13px;font-weight:700;color:var(--cobalt-dark);line-height:1.3;margin-bottom:6px;}
+.item-desc{font-size:11px;color:var(--gray-400);margin-bottom:6px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.item-return-date{font-size:11px;color:var(--warning);font-weight:600;margin-bottom:10px;}
+.item-footer{display:flex;justify-content:space-between;align-items:center;}
+.status-dot{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;}
+.dot{width:6px;height:6px;border-radius:50%;}
+.dot.available{background:var(--success);}
+.dot.loaned{background:var(--danger);}
+.borrow-btn{padding:5px 14px;background:var(--cobalt);color:#fff;border:none;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;transition:background .2s;font-family:inherit;}
+.borrow-btn:hover{background:var(--cobalt-dark);}
+.reserve-btn{padding:5px 12px;background:#fff;color:var(--cobalt);border:1.5px solid var(--cobalt);border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;font-family:inherit;}
+.reserve-btn:hover{background:var(--cobalt-ghost);}
+
+/* DETAIL */
+.detail-card{background:#fff;border-radius:var(--radius-lg);overflow:hidden;border:1.5px solid var(--gray-200);box-shadow:var(--shadow-md);margin-bottom:14px;}
+.detail-header{background:linear-gradient(135deg,var(--cobalt-dark),var(--cobalt-mid));padding:24px 24px 20px;color:#fff;}
+.detail-badge{font-size:10px;font-weight:700;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);padding:3px 10px;border-radius:20px;display:inline-block;margin-bottom:8px;}
+.detail-title{font-family:'Noto Serif JP',serif;font-size:20px;font-weight:700;margin-bottom:4px;}
+.detail-sub{font-size:12px;opacity:.7;}
+.detail-body{padding:20px 24px;}
+.detail-section{margin-bottom:18px;}
+.detail-section-title{font-size:11px;font-weight:700;color:var(--cobalt);text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px;display:flex;align-items:center;gap:5px;}
+.detail-section-title::before{content:'';width:3px;height:13px;background:var(--cobalt);border-radius:2px;}
+.detail-text{font-size:13px;color:var(--gray-600);line-height:1.75;}
+.external-link{display:inline-flex;align-items:center;gap:6px;color:var(--cobalt);font-size:12px;font-weight:600;text-decoration:none;background:var(--cobalt-ghost);padding:7px 13px;border-radius:var(--radius-sm);border:1px solid var(--cobalt-pale);transition:all .2s;}
+.external-link:hover{background:var(--cobalt-pale);}
+
+/* CONFIRM */
+.confirm-card{background:#fff;border-radius:var(--radius-lg);padding:24px;border:1.5px solid var(--gray-200);box-shadow:var(--shadow-md);margin-bottom:14px;}
+.confirm-title{font-family:'Noto Serif JP',serif;font-size:17px;font-weight:700;color:var(--cobalt-dark);margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid var(--gray-200);}
+.confirm-row{display:flex;justify-content:space-between;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--gray-100);font-size:13px;gap:12px;}
+.confirm-row:last-child{border-bottom:none;}
+.confirm-label{color:var(--gray-400);font-size:12px;flex-shrink:0;padding-top:2px;}
+.confirm-value{font-weight:700;color:var(--gray-800);text-align:right;}
+
+/* CALENDAR */
+.calendar-wrap{background:var(--gray-50);border-radius:var(--radius);padding:14px;border:1px solid var(--gray-200);}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.cal-month{font-weight:700;font-size:14px;color:var(--cobalt-dark);}
+.cal-nav{background:none;border:1.5px solid var(--gray-200);border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:13px;color:var(--cobalt);display:flex;align-items:center;justify-content:center;transition:all .2s;font-family:inherit;}
+.cal-nav:hover{background:var(--cobalt-ghost);}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+.cal-day-name{text-align:center;font-size:10px;font-weight:700;color:var(--gray-400);padding:4px 0;}
+.cal-day-name.sun{color:#c0392b;}.cal-day-name.sat{color:#2471a3;}
+.cal-day{text-align:center;font-size:12px;padding:7px 4px;border-radius:6px;cursor:pointer;transition:all .2s;font-weight:500;color:var(--gray-800);}
+.cal-day.disabled{color:var(--gray-200)!important;cursor:not-allowed;}
+.cal-day:hover:not(.disabled):not(.selected):not(.empty){background:var(--cobalt-pale);color:var(--cobalt);}
+.cal-day.selected{background:var(--cobalt);color:#fff!important;font-weight:700;}
+.cal-day.today:not(.disabled){font-weight:700;color:var(--cobalt);}
+.cal-day.sun:not(.disabled){color:#c0392b;}
+.cal-day.sat:not(.disabled){color:#2471a3;}
+.cal-day.empty{cursor:default;}
+.selected-date-display{margin-top:10px;text-align:center;font-size:13px;font-weight:700;color:var(--cobalt);min-height:20px;}
+
+/* BUTTONS */
+.primary-btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--cobalt),var(--cobalt-mid));color:#fff;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;font-family:inherit;letter-spacing:.03em;box-shadow:0 4px 16px rgba(26,74,138,.28);}
+.primary-btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 20px rgba(26,74,138,.38);}
+.primary-btn:disabled{opacity:.38;cursor:not-allowed;}
+.secondary-btn{width:100%;padding:12px;background:#fff;color:var(--cobalt);border:1.5px solid var(--cobalt);border-radius:var(--radius);font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;font-family:inherit;margin-top:8px;}
+.secondary-btn:hover{background:var(--cobalt-ghost);}
+/* 延長ボタン */
+.extend-btn{width:100%;padding:12px;background:var(--success-light);color:var(--success);border:1.5px solid var(--success);border-radius:var(--radius);font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;font-family:inherit;margin-top:8px;}
+.extend-btn:hover{background:#d4edda;}
+
+/* SUCCESS */
+.success-wrap{text-align:center;padding:36px 16px;}
+.success-icon{width:76px;height:76px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 18px;animation:pop .4s cubic-bezier(.34,1.56,.64,1);}
+.success-icon.green{background:var(--success-light);}
+.success-icon.blue{background:var(--cobalt-pale);}
+@keyframes pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+.success-title{font-family:'Noto Serif JP',serif;font-size:20px;font-weight:700;color:var(--gray-800);margin-bottom:8px;}
+.success-subtitle{font-size:13px;color:var(--gray-400);margin-bottom:24px;line-height:1.7;}
+.success-detail{background:var(--cobalt-ghost);border-radius:var(--radius);padding:16px 18px;margin-bottom:24px;text-align:left;}
+
+/* RETURN */
+.return-item-card{background:#fff;border-radius:var(--radius);padding:14px 16px;border:1.5px solid var(--gray-200);margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .2s;box-shadow:var(--shadow-sm);}
+.return-item-card:hover{border-color:var(--cobalt-light);box-shadow:var(--shadow-md);}
+.return-item-card.selected{border-color:var(--cobalt);background:var(--cobalt-ghost);}
+.check-circle{width:22px;height:22px;border-radius:50%;border:2px solid var(--gray-200);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;transition:all .2s;}
+.return-item-card.selected .check-circle{background:var(--cobalt);border-color:var(--cobalt);color:#fff;}
+
+/* MYPAGE */
+.profile-card{background:#fff;border-radius:var(--radius-lg);padding:20px;border:1.5px solid var(--gray-200);box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:16px;margin-bottom:20px;}
+.profile-avatar{width:54px;height:54px;border-radius:50%;flex-shrink:0;border:2.5px solid var(--cobalt-pale);background:var(--cobalt);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;}
+.chip{display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;}
+.chip.info{background:var(--cobalt-pale);color:var(--cobalt);}
+
+/* 過去履歴カードの「再び借りる」リンク */
+.history-card{background:#fff;border-radius:var(--radius);padding:14px 16px;border:1.5px solid var(--gray-200);margin-bottom:8px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow-sm);transition:all .2s;cursor:pointer;}
+.history-card:hover{box-shadow:var(--shadow-md);border-color:var(--cobalt-light);}
+.history-quick-btn{font-size:11px;font-weight:700;padding:4px 10px;background:var(--cobalt-ghost);color:var(--cobalt);border:1.5px solid var(--cobalt-pale);border-radius:20px;cursor:pointer;white-space:nowrap;transition:all .2s;font-family:inherit;}
+.history-quick-btn:hover{background:var(--cobalt-pale);}
+
+.empty-state{text-align:center;padding:28px 16px;color:var(--gray-400);}
+.empty-state .empty-icon{font-size:32px;margin-bottom:8px;}
+.empty-state .empty-text{font-size:12px;}
+
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--gray-200);display:flex;padding:8px 0 12px;z-index:90;box-shadow:0 -4px 16px rgba(0,0,0,.06);}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px;transition:color .2s;color:var(--gray-400);}
+.nav-item.active{color:var(--cobalt);}
+.nav-icon{font-size:21px;line-height:1;}
+.nav-label{font-size:10px;font-weight:700;letter-spacing:.02em;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--gray-200);border-radius:4px;}
+</style>
+</head>
+<body>
+
+<header class="header" style="display:none">
+  <div class="header-logo">
+    <div class="logo-emblem">
+      <svg width="42" height="42" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- 外縁の六角形リング -->
+        <path d="M21 2 L37 11.5 L37 30.5 L21 40 L5 30.5 L5 11.5 Z" stroke="rgba(255,255,255,0.35)" stroke-width="1.2" fill="none"/>
+        <!-- 内側の薄い六角形 -->
+        <path d="M21 7 L33 13.75 L33 27.25 L21 34 L9 27.25 L9 13.75 Z" fill="rgba(255,255,255,0.07)"/>
+        <!-- H 文字（本郷のH） -->
+        <text x="21" y="27" text-anchor="middle" font-family="Georgia,serif" font-size="18" font-weight="700" fill="rgba(255,255,255,0.95)" letter-spacing="-0.5">H</text>
+        <!-- 下部の細いアクセントライン -->
+        <line x1="14" y1="33" x2="28" y2="33" stroke="rgba(200,168,75,0.7)" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="header-title">
+      <span class="school">本郷中学・高等学校</span>
+      <span class="system">備品管理システム</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="notif-btn" id="notif-btn" onclick="showScreen('mypage');setNav('mypage')">
+      🔔<span class="notif-badge">1</span>
+    </div>
+    <div class="user-info" onclick="showScreen('mypage');setNav('mypage')">
+      <div class="user-avatar" id="header-avatar-display">?</div>
+      <span class="user-name" id="user-name-display"></span>
+    </div>
+  </div>
+</header>
+
+<div class="app-container" style="display:none">
+
+  <!-- HOME -->
+  <div id="screen-home" class="screen active">
+    <div class="overdue-banner" id="overdue-banner">
+      <div class="ob-icon">⚠️</div>
+      <div class="ob-text">返却期限を過ぎた備品があります。返却が完了するまで新規の貸出はできません。</div>
+    </div>
+    <div class="home-hero" onclick="jumpToMyLoans()">
+      <div class="hero-greeting">こんにちは</div>
+      <div class="hero-name" id="hero-name">後藤 泰治 <span>先生</span></div>
+      <div class="hero-stats">
+        <div class="hero-stat"><div class="num">2</div><div class="label">貸出中</div></div>
+        <div class="hero-stat warn" id="stat-duesoon-wrap"><div class="num">1</div><div class="label">期限間近</div></div>
+        <div class="hero-stat alert" id="stat-overdue-wrap" style="display:none"><div class="num">0</div><div class="label">期限超過</div></div>
+        <div class="hero-stat"><div class="num">0</div><div class="label">予約中</div></div>
+      </div>
+      <div class="hero-hint">タップして詳細を確認 ›</div>
+    </div>
+    <div class="action-grid">
+      <div class="action-card primary" id="borrow-action" onclick="goBorrow()">
+        <div class="action-icon">📦</div>
+        <div class="action-info"><div class="action-title">備品を借りる</div><div class="action-desc">カテゴリから選択</div></div>
+        <div class="action-arrow">›</div>
+      </div>
+      <div class="action-card" onclick="showScreen('return-select');setNav('return')">
+        <div class="action-icon">↩️</div>
+        <div class="action-info"><div class="action-title">返却する</div><div class="action-desc">借りている備品を返す</div></div>
+        <div class="action-arrow">›</div>
+      </div>
+    </div>
+    <div class="section-title">現在の貸出状況</div>
+    <div id="home-loans-container">
+      <div style="text-align:center;padding:20px;color:#9aa3b5;font-size:13px;">読み込み中...</div>
+    </div>
+  </div>
+
+  <!-- CATEGORIES -->
+  <div id="screen-categories" class="screen">
+    <button class="back-btn" onclick="showScreen('home');setNav('home')">‹ ホームへ戻る</button>
+    <div class="page-header"><div class="page-title">カテゴリを選ぶ</div><div class="page-subtitle">借りたい備品のカテゴリを選択してください</div></div>
+    <div class="category-grid" id="category-grid">
+      <div style="text-align:center;padding:20px;color:#9aa3b5;font-size:13px;grid-column:1/-1;">読み込み中...</div>
+    </div>
+  </div>
+
+  <!-- ITEMS -->
+  <div id="screen-items" class="screen">
+    <button class="back-btn" onclick="showScreen('categories')">‹ カテゴリへ戻る</button>
+    <div class="page-header">
+      <div class="breadcrumb"><span onclick="showScreen('categories')">カテゴリ</span><span class="sep">›</span><span class="current" id="items-title">電子デバイス</span></div>
+      <div class="page-title" id="items-page-title">電子デバイス</div>
+    </div>
+    <div class="sub-category-tabs" id="subcategory-tabs"></div>
+    <div class="item-grid" id="item-grid">
+      <div style="text-align:center;padding:20px;color:#9aa3b5;font-size:13px;grid-column:1/-1;">読み込み中...</div>
+    </div>
+  </div>
+
+  <!-- ITEM DETAIL -->
+  <div id="screen-item-detail" class="screen">
+    <button class="back-btn" onclick="detailBack()">‹ 戻る</button>
+
+    <!-- 「借りる」ボタンを最上部に（貸出画面から来た時のみ表示） -->
+    <div id="borrow-top-btn" style="display:none;margin-bottom:14px;">
+      <button class="primary-btn" onclick="showScreen('borrow-confirm')">📦 この備品を借りる</button>
+    </div>
+
+    <!-- 延長ボタン（読み取り専用かつ予約なしの時のみ表示） -->
+    <div id="extend-top-btn" style="display:none;margin-bottom:14px;">
+      <button class="extend-btn" onclick="showScreen('extend-confirm')">🔄 返却期限を延長する</button>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-header">
+        <span class="detail-badge" id="detail-badge">電子デバイス › Chromebook</span>
+        <div class="detail-title" id="detail-title">Chromebook No.01</div>
+        <div class="detail-sub" id="detail-sub">資産番号: CB-2024-001</div>
+      </div>
+      <div class="detail-body">
+        <div class="detail-section">
+          <div class="detail-section-title">備品説明</div>
+          <div class="detail-text">授業・校務用ノートPCです。Google Workspaceに完全対応しており、ドキュメント・スプレッドシート・スライドが利用可能です。バッテリー持続時間は約8時間です。</div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-section-title">使い方・注意事項</div>
+          <div class="detail-text">① 電源ボタンは右側面にあります。② 初回起動時はhongo.ed.jpアカウントでログインしてください。③ 使用後は必ず充電ケーブルに接続してから返却してください。④ 画面を強く押さないようご注意ください。</div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-section-title">外部リンク</div>
+          <a class="external-link" href="#" onclick="return false;">🔗 メーカーサポートページ</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BORROW CONFIRM -->
+  <div id="screen-borrow-confirm" class="screen">
+    <button class="back-btn" onclick="showScreen('item-detail')">‹ 詳細へ戻る</button>
+    <div class="page-header"><div class="page-title">貸出確認</div><div class="page-subtitle">返却日をカレンダーから選択してください</div></div>
+    <div class="confirm-card">
+      <div class="confirm-title">貸出情報</div>
+      <div class="confirm-row"><span class="confirm-label">備品名</span><span class="confirm-value" id="confirm-item-name">Chromebook No.01</span></div>
+      <div class="confirm-row"><span class="confirm-label">借りる人</span><span class="confirm-value" id="confirm-user-name">-</span></div>
+      <div class="confirm-row" style="flex-direction:column;align-items:flex-start;gap:10px;">
+        <span class="confirm-label">返却予定日</span>
+        <div class="calendar-wrap" style="width:100%">
+          <div class="cal-header">
+            <button class="cal-nav" onclick="changeCalMonth(-1)">‹</button>
+            <span class="cal-month" id="cal-month-label"></span>
+            <button class="cal-nav" onclick="changeCalMonth(1)">›</button>
+          </div>
+          <div class="cal-grid">
+            <div class="cal-day-name sun">日</div><div class="cal-day-name">月</div><div class="cal-day-name">火</div>
+            <div class="cal-day-name">水</div><div class="cal-day-name">木</div><div class="cal-day-name">金</div>
+            <div class="cal-day-name sat">土</div>
+          </div>
+          <div class="cal-grid" id="cal-days"></div>
+          <div class="selected-date-display" id="selected-date-display">返却日を選択してください</div>
+        </div>
+      </div>
+    </div>
+    <button class="primary-btn" id="borrow-submit-btn" onclick="completeBorrow()" disabled>✓ 借りる</button>
+    <button class="secondary-btn" onclick="showScreen('items')">キャンセル</button>
+  </div>
+
+  <!-- EXTEND CONFIRM（期限延長） -->
+  <div id="screen-extend-confirm" class="screen">
+    <button class="back-btn" onclick="showScreen('item-detail')">‹ 詳細へ戻る</button>
+    <div class="page-header"><div class="page-title">返却期限の延長</div><div class="page-subtitle">新しい返却日を選択してください（予約がない場合のみ延長可）</div></div>
+    <div class="confirm-card">
+      <div class="confirm-title">延長情報</div>
+      <div class="confirm-row"><span class="confirm-label">備品名</span><span class="confirm-value" id="extend-item-name">Chromebook No.03</span></div>
+      <div class="confirm-row"><span class="confirm-label">現在の期限</span><span class="confirm-value" style="color:var(--warning)" id="extend-current-due">2026/03/30（月）</span></div>
+      <div class="confirm-row" style="flex-direction:column;align-items:flex-start;gap:10px;">
+        <span class="confirm-label">新しい返却予定日</span>
+        <div class="calendar-wrap" style="width:100%">
+          <div class="cal-header">
+            <button class="cal-nav" onclick="changeCalMonthEx(-1)">‹</button>
+            <span class="cal-month" id="cal-ex-month-label"></span>
+            <button class="cal-nav" onclick="changeCalMonthEx(1)">›</button>
+          </div>
+          <div class="cal-grid">
+            <div class="cal-day-name sun">日</div><div class="cal-day-name">月</div><div class="cal-day-name">火</div>
+            <div class="cal-day-name">水</div><div class="cal-day-name">木</div><div class="cal-day-name">金</div>
+            <div class="cal-day-name sat">土</div>
+          </div>
+          <div class="cal-grid" id="cal-ex-days"></div>
+          <div class="selected-date-display" id="selected-ex-date-display">新しい返却日を選択してください</div>
+        </div>
+      </div>
+    </div>
+    <button class="primary-btn" id="extend-submit-btn" onclick="completeExtend()" disabled>🔄 延長を確定する</button>
+    <button class="secondary-btn" onclick="showScreen('item-detail')">キャンセル</button>
+  </div>
+
+  <!-- EXTEND SUCCESS -->
+  <div id="screen-extend-success" class="screen">
+    <div class="success-wrap">
+      <div class="success-icon green">🔄</div>
+      <div class="success-title">延長が完了しました</div>
+      <div class="success-subtitle" id="extend-success-text"></div>
+      <div class="success-detail">
+        <div class="confirm-row"><span class="confirm-label">備品名</span><span class="confirm-value" id="ex-success-name"></span></div>
+        <div class="confirm-row" style="border-bottom:none"><span class="confirm-label">新しい返却期限</span><span class="confirm-value" id="ex-success-due" style="color:var(--cobalt)"></span></div>
+      </div>
+      <button class="primary-btn" onclick="showScreen('home');setNav('home')">ホームへ戻る</button>
+    </div>
+  </div>
+
+  <!-- BORROW SUCCESS -->
+  <div id="screen-borrow-success" class="screen">
+    <div class="success-wrap">
+      <div class="success-icon green">✓</div>
+      <div class="success-title">貸出完了しました</div>
+      <div class="success-subtitle" id="success-reminder-text"></div>
+      <div class="success-detail">
+        <div class="confirm-row"><span class="confirm-label">備品名</span><span class="confirm-value" id="success-item-name"></span></div>
+        <div class="confirm-row"><span class="confirm-label">貸出日時</span><span class="confirm-value" id="success-loan-date"></span></div>
+        <div class="confirm-row" style="border-bottom:none"><span class="confirm-label">返却期限</span><span class="confirm-value" id="success-due-date" style="color:var(--cobalt)"></span></div>
+      </div>
+      <button class="primary-btn" onclick="showScreen('home');setNav('home')">ホームへ戻る</button>
+    </div>
+  </div>
+
+  <!-- RETURN SELECT -->
+  <div id="screen-return-select" class="screen">
+    <button class="back-btn" onclick="showScreen('home');setNav('home')">‹ ホームへ戻る</button>
+    <div class="page-header"><div class="page-title">返却する備品を選ぶ</div></div>
+    <div id="return-items-container"></div>
+    <div style="margin-top:18px"><button class="primary-btn" id="return-confirm-btn" disabled>選択した備品を返却する</button></div>
+  </div>
+
+  <!-- RETURN SUCCESS -->
+  <div id="screen-return-success" class="screen">
+    <div class="success-wrap">
+      <div class="success-icon blue">↩</div>
+      <div class="success-title">返却完了しました</div>
+      <div class="success-subtitle">ご利用ありがとうございました。<br>備品は所定の場所に戻してください。</div>
+      <div class="success-detail"><div class="confirm-row" style="border-bottom:none"><span class="confirm-label">返却日時</span><span class="confirm-value" id="return-datetime"></span></div></div>
+      <button class="primary-btn" onclick="showScreen('home');setNav('home')">ホームへ戻る</button>
+    </div>
+  </div>
+
+  <!-- MYPAGE -->
+  <div id="screen-mypage" class="screen">
+    <div class="page-header"><div class="page-title">マイページ</div></div>
+    <div class="profile-card">
+      <div class="profile-avatar" id="user-avatar-display">?</div>
+      <div style="flex:1;">
+        <div style="font-size:16px;font-weight:700;color:var(--cobalt-dark);margin-bottom:3px" id="user-name-display"></div>
+        <div style="font-size:12px;color:var(--gray-400);margin-bottom:6px" id="mypage-user-email"></div>
+        <span class="chip info" id="mypage-role-chip"></span>
+      </div>
+      <button id="pw-change-btn" style="background:var(--cobalt-ghost);border:1.5px solid var(--cobalt-pale);border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;color:var(--cobalt);cursor:pointer;font-family:inherit;white-space:nowrap;">🔑 PW変更</button>
+    </div>
+    <!-- 現在の貸出（動的レンダリング） -->
+    <div id="mypage-loans">
+      <div class="section-title">現在の貸出</div>
+      <div id="mypage-current-loans-list"><div style="text-align:center;color:var(--gray-400);padding:20px;font-size:13px;">読み込み中…</div></div>
+    </div>
+    <!-- 予約中（フェーズ5実装予定） -->
+    <div style="margin-top:20px">
+      <div class="section-title">予約中</div>
+      <div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">予約中の備品はありません</div></div>
+    </div>
+    <!-- 過去の貸出履歴（動的レンダリング） -->
+    <div style="margin-top:8px">
+      <div class="section-title">過去の貸出履歴</div>
+      <div id="mypage-history-list"><div style="text-align:center;color:var(--gray-400);padding:20px;font-size:13px;">読み込み中…</div></div>
+    </div>
+  </div>
+
+</div>
+
+<nav class="bottom-nav" style="display:none">
+  <div class="nav-item active" id="nav-home" onclick="showScreen('home');setNav('home')"><span class="nav-icon">🏠</span><span class="nav-label">ホーム</span></div>
+  <div class="nav-item" id="nav-borrow" onclick="goBorrow();setNav('borrow')"><span class="nav-icon">📦</span><span class="nav-label">借りる</span></div>
+  <div class="nav-item" id="nav-return" onclick="showScreen('return-select');setNav('return')"><span class="nav-icon">↩️</span><span class="nav-label">返却</span></div>
+  <div class="nav-item" id="nav-mypage" onclick="showScreen('mypage');setNav('mypage')"><span class="nav-icon">👤</span><span class="nav-label">マイページ</span></div>
+</nav>
+
+<script>
+const S={hasOverdue:false,hasDueSoon:true,selectedDueDate:null,selectedExDate:null,calYear:0,calMonth:0,exCalYear:0,exCalMonth:0,fromBorrow:false,fromHistory:false,currentItemName:'',currentItemIcon:'',currentBadge:'',currentAsset:''};
+const DOW=['日','月','火','水','木','金','土'];
+// JST（日本時間）でISO文字列を返す
+function toJST(date){
+  var jst=new Date(date.getTime()+9*60*60*1000);
+  return jst.toISOString().replace('Z','+09:00');
+}
+
+(function init(){
+  const now=new Date();
+  S.calYear=S.exCalYear=now.getFullYear();
+  S.calMonth=S.exCalMonth=now.getMonth();
+  renderCalendar(); renderCalendarEx();
+  updateOverdueUI();
+  document.getElementById('return-datetime').textContent=fmtDT(now);
+})();
+function fmtDT(d){return`${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;}
+function fmtD(y,m,d){return`${y}/${p(m+1)}/${p(d)}`;}
+function p(n){return String(n).padStart(2,'0');}
+function updateOverdueUI(){
+  document.getElementById('overdue-banner').classList.toggle('show',S.hasOverdue);
+  document.getElementById('borrow-action').classList.toggle('disabled',S.hasOverdue);
+  document.getElementById('notif-btn').classList.toggle('hidden',!S.hasOverdue&&!S.hasDueSoon);
+  document.getElementById('stat-overdue-wrap').style.display=S.hasOverdue?'':'none';
+  document.getElementById('stat-duesoon-wrap').style.display=S.hasDueSoon?'':'none';
+}
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  document.getElementById('screen-'+name).classList.add('active');
+  window.scrollTo(0,0);
+  if(name==='mypage'){
+    var btn=document.getElementById('pw-change-btn');
+    if(btn){
+      var newBtn=btn.cloneNode(true);
+      btn.parentNode.replaceChild(newBtn,btn);
+      newBtn.addEventListener('click',showChangePasswordScreen);
+    }
+    // ✅ マイページ表示のたびに最新データを反映
+    updateMypageRoleBadge();
+    if(currentUser) loadMypageHistory(currentUser.email);
+  }
+  if(name==='return-select'){
+    renderReturnScreen();
+  }
+  if(name==='borrow-confirm'){
+    // ② 前回の日付が今日以前なら初期化、今日以降なら保持
+    var today=new Date();today.setHours(0,0,0,0);
+    if(!S.selectedDueDate || S.selectedDueDate < today){
+      S.selectedDueDate=null;
+      S.calYear=today.getFullYear();
+      S.calMonth=today.getMonth();
+      document.getElementById('selected-date-display').textContent='返却日を選択してください';
+      document.getElementById('borrow-submit-btn').disabled=true;
+    }
+    // 借りる人の名前を反映
+    if(currentUser){
+      var nameEl=document.getElementById('confirm-user-name');
+      if(nameEl) nameEl.textContent=currentUser.name;
+    }
+    renderCalendar();
+  }
+}
+function setNav(name){document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));const m={home:'nav-home',borrow:'nav-borrow',return:'nav-return',mypage:'nav-mypage'};if(m[name])document.getElementById(m[name]).classList.add('active');}
+function jumpToMyLoans(){showScreen('mypage');setNav('mypage');setTimeout(()=>document.getElementById('mypage-loans').scrollIntoView({behavior:'smooth'}),120);}
+function goBorrow(){if(S.hasOverdue)return;showScreen('categories');setNav('borrow');}
+function showItems(name){document.getElementById('items-title').textContent=name;document.getElementById('items-page-title').textContent=name;showScreen('items');}
+function activateTab(el){el.closest('.sub-category-tabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');}
+
+function setDetailContent(name,icon,badge,asset){
+  S.currentItemName=name; S.currentItemIcon=icon; S.currentBadge=badge; S.currentAsset=asset;
+  document.getElementById('detail-title').textContent=name;
+  document.getElementById('detail-badge').textContent=badge;
+  document.getElementById('detail-sub').textContent=`資産番号: ${asset}`;
+  document.getElementById('confirm-item-name').textContent=name;
+}
+
+// 読み取り専用（ホーム・マイページ現在貸出から）：借りるボタンなし、延長ボタンあり
+function goToDetailReadOnly(name,icon,badge,asset){
+  S.fromBorrow=false; S.fromHistory=false;
+  setDetailContent(name,icon,badge,asset);
+  document.getElementById('borrow-top-btn').style.display='none';
+  document.getElementById('extend-top-btn').style.display='block'; // 予約なしを想定
+  document.getElementById('extend-item-name').textContent=name;
+  showScreen('item-detail');
+}
+
+// 貸出一覧から：借りるボタンあり
+function goToDetailBorrowable(name,icon,badge,asset){
+  S.fromBorrow=true; S.fromHistory=false;
+  setDetailContent(name,icon,badge,asset);
+  document.getElementById('borrow-top-btn').style.display='block';
+  document.getElementById('extend-top-btn').style.display='none';
+  showScreen('item-detail');
+}
+
+// 過去履歴から：借りるボタンあり（また借りる）
+function goToDetailFromHistory(name,icon,badge,asset){
+  S.fromBorrow=true; S.fromHistory=true;
+  setDetailContent(name,icon,badge,asset);
+  document.getElementById('borrow-top-btn').style.display='block';
+  document.getElementById('extend-top-btn').style.display='none';
+  showScreen('item-detail');
+}
+
+function detailBack(){
+  if(S.fromHistory){showScreen('mypage');setNav('mypage');}
+  else if(S.fromBorrow){showScreen('items');}
+  else{showScreen('home');setNav('home');}
+}
+
+/* CALENDAR（貸出用） */
+function renderCalendar(){
+  const y=S.calYear,m=S.calMonth,today=new Date();today.setHours(0,0,0,0);
+  document.getElementById('cal-month-label').textContent=`${y}年 ${m+1}月`;
+  const firstDay=new Date(y,m,1).getDay(),daysInMonth=new Date(y,m+1,0).getDate();
+  const grid=document.getElementById('cal-days');grid.innerHTML='';
+  for(let i=0;i<firstDay;i++){const el=document.createElement('div');el.className='cal-day empty';grid.appendChild(el);}
+  for(let d=1;d<=daysInMonth;d++){
+    const el=document.createElement('div'),thisDate=new Date(y,m,d);thisDate.setHours(0,0,0,0);
+    el.className='cal-day';el.textContent=d;
+    if(thisDate<today){el.classList.add('disabled');}
+    else{
+      const dow=thisDate.getDay();
+      if(dow===0)el.classList.add('sun');if(dow===6)el.classList.add('sat');
+      if(thisDate.getTime()===today.getTime())el.classList.add('today');
+      if(S.selectedDueDate&&S.selectedDueDate.getTime()===thisDate.getTime())el.classList.add('selected');
+      el.onclick=()=>selectDay(y,m,d);
+    }
+    grid.appendChild(el);
+  }
+}
+function changeCalMonth(delta){
+  S.calMonth+=delta;if(S.calMonth>11){S.calMonth=0;S.calYear++;}if(S.calMonth<0){S.calMonth=11;S.calYear--;}
+  const now=new Date();if(S.calYear<now.getFullYear()||(S.calYear===now.getFullYear()&&S.calMonth<now.getMonth())){S.calYear=now.getFullYear();S.calMonth=now.getMonth();}
+  renderCalendar();
+}
+function selectDay(y,m,d){
+  const today=new Date();today.setHours(0,0,0,0);
+  const chosen=new Date(y,m,d);chosen.setHours(0,0,0,0);
+  if(chosen<today)return;
+  S.selectedDueDate=chosen;renderCalendar();
+  document.getElementById('selected-date-display').textContent='返却予定日: '+fmtD(y,m,d)+'（'+DOW[chosen.getDay()]+'）';
+  document.getElementById('borrow-submit-btn').disabled=false;
+}
+function completeBorrow(){
+  var today=new Date();today.setHours(0,0,0,0);
+  var due=S.selectedDueDate;
+  var diff=Math.round((due-today)/864e5);
+  var msg;
+  if(diff===0)msg='本日返却の備品です。業務終了前に必ずご返却をお願いします。';
+  else if(diff===1)msg='明日が返却期限です。当日朝にリマインドメールをお送りします。';
+  else msg='返却期限の前日にリマインドメールをお送りします。';
+
+  if(!currentUser){alert('ログイン情報がありません。再ログインしてください。');return;}
+
+  var btn=document.getElementById('borrow-submit-btn');
+  btn.textContent='処理中...';
+  btn.disabled=true;
+
+  var dueStr=fmtD(due.getFullYear(),due.getMonth(),due.getDate());
+  var loanId='L'+Date.now();
+
+  // ✅ 認証トークン付きsbInsert/sbPatchで書き込み
+  sbInsert('loans', {
+    loan_id:loanId,
+    resource_id:S.currentAsset,
+    user_email:currentUser.email,
+    user_name:currentUser.name,
+    loaned_at:toJST(new Date()),
+    due_date:dueStr,
+    status:'loaned'
+  })
+  .then(function(){
+    return sbPatch('resources?resource_id=eq.'+encodeURIComponent(S.currentAsset), {status:'loaned'});
+  })
+  .then(function(){
+    // 成功 → 画面を更新
+    document.getElementById('success-reminder-text').textContent=msg;
+    document.getElementById('success-item-name').textContent=S.currentItemName;
+    document.getElementById('success-due-date').textContent=dueStr+'（'+DOW[due.getDay()]+'）';
+    document.getElementById('success-loan-date').textContent=fmtDT(new Date());
+    // キャッシュを更新
+    allResources.forEach(function(r){if(r.resource_id===S.currentAsset)r.status='loaned';});
+    loadMyLoans(currentUser.email);
+    btn.textContent='✓ 借りる';
+    btn.disabled=false;
+    showScreen('borrow-success');setNav('home');
+  })
+  .catch(function(err){
+    console.error('貸出エラー:',err);
+    alert('貸出処理に失敗しました。\n'+err.message);
+    btn.textContent='✓ 借りる';
+    btn.disabled=false;
+  });
+}
+
+/* CALENDAR（延長用） */
+function renderCalendarEx(){
+  const y=S.exCalYear,m=S.exCalMonth,today=new Date();today.setHours(0,0,0,0);
+  document.getElementById('cal-ex-month-label').textContent=`${y}年 ${m+1}月`;
+  const firstDay=new Date(y,m,1).getDay(),daysInMonth=new Date(y,m+1,0).getDate();
+  const grid=document.getElementById('cal-ex-days');grid.innerHTML='';
+  for(let i=0;i<firstDay;i++){const el=document.createElement('div');el.className='cal-day empty';grid.appendChild(el);}
+  for(let d=1;d<=daysInMonth;d++){
+    const el=document.createElement('div'),thisDate=new Date(y,m,d);thisDate.setHours(0,0,0,0);
+    el.className='cal-day';el.textContent=d;
+    if(thisDate<=today){el.classList.add('disabled');}
+    else{
+      const dow=thisDate.getDay();
+      if(dow===0)el.classList.add('sun');if(dow===6)el.classList.add('sat');
+      if(S.selectedExDate&&S.selectedExDate.getTime()===thisDate.getTime())el.classList.add('selected');
+      el.onclick=()=>selectExDay(y,m,d);
+    }
+    grid.appendChild(el);
+  }
+}
+function changeCalMonthEx(delta){
+  S.exCalMonth+=delta;if(S.exCalMonth>11){S.exCalMonth=0;S.exCalYear++;}if(S.exCalMonth<0){S.exCalMonth=11;S.exCalYear--;}
+  const now=new Date();if(S.exCalYear<now.getFullYear()||(S.exCalYear===now.getFullYear()&&S.exCalMonth<now.getMonth())){S.exCalYear=now.getFullYear();S.exCalMonth=now.getMonth();}
+  renderCalendarEx();
+}
+function selectExDay(y,m,d){
+  S.selectedExDate=new Date(y,m,d);S.selectedExDate.setHours(0,0,0,0);
+  renderCalendarEx();
+  document.getElementById('selected-ex-date-display').textContent=`新しい返却期限: ${fmtD(y,m,d)}（${DOW[S.selectedExDate.getDay()]}）`;
+  document.getElementById('extend-submit-btn').disabled=false;
+}
+function completeExtend(){
+  const due=S.selectedExDate;
+  const diff=Math.round((due-new Date().setHours(0,0,0,0))/864e5);
+  let msg;
+  if(diff===1)msg='明日が新しい返却期限です。当日朝にリマインドメールをお送りします。';
+  else msg='新しい返却期限の前日にリマインドメールをお送りします。';
+  document.getElementById('ex-success-name').textContent=S.currentItemName;
+  document.getElementById('ex-success-due').textContent=fmtD(due.getFullYear(),due.getMonth(),due.getDate())+`（${DOW[due.getDay()]}）`;
+  document.getElementById('extend-success-text').textContent=msg;
+  showScreen('extend-success');setNav('home');
+}
+
+function toggleReturnSelect(card){
+  card.classList.toggle('selected');
+  var anySelected=document.querySelectorAll('.return-item-card.selected').length>0;
+  document.getElementById('return-confirm-btn').disabled=!anySelected;
+}
+
+// 返却画面を動的に描画
+function renderReturnScreen(){
+  var container=document.getElementById('return-items-container');
+  var confirmBtn=document.getElementById('return-confirm-btn');
+  if(!container) return;
+  if(myLoans.length===0){
+    container.innerHTML='<div style="text-align:center;padding:30px;color:#9aa3b5;font-size:13px;">返却する備品がありません</div>';
+    return;
+  }
+  container.innerHTML='';
+  myLoans.forEach(function(loan){
+    var res=allResources.filter(function(r){return r.resource_id===loan.resource_id;})[0]||{};
+    var today=new Date();today.setHours(0,0,0,0);
+    var due=new Date(loan.due_date);due.setHours(0,0,0,0);
+    var diff=Math.round((due-today)/864e5);
+    var badgeHtml='';
+    if(diff<0) badgeHtml='<span class="badge overdue" style="margin-left:5px">期限超過</span>';
+    else if(diff<=1) badgeHtml='<span class="badge due-soon" style="margin-left:5px">期限間近</span>';
+    var card=document.createElement('div');
+    card.className='return-item-card';
+    card.dataset.loanId=loan.loan_id;
+    card.dataset.resourceId=loan.resource_id;
+    // ✅ XSS対策: DBの値はtextContentで設定
+    var checkDiv=document.createElement('div');
+    checkDiv.className='check-circle';
+    var iconDiv=document.createElement('div');
+    iconDiv.className='loan-icon';
+    iconDiv.textContent=res.icon||'📦';
+    var infoDiv=document.createElement('div');
+    infoDiv.className='loan-info';
+    var nameDiv=document.createElement('div');
+    nameDiv.className='loan-name';
+    nameDiv.textContent=res.name||'不明';
+    if(res.number){
+      var numSpan=document.createElement('span');
+      numSpan.className='item-number';
+      numSpan.textContent=res.number;
+      nameDiv.appendChild(numSpan);
+    }
+    var metaDiv=document.createElement('div');
+    metaDiv.className='loan-meta';
+    metaDiv.textContent='返却期限: '+loan.due_date;
+    if(diff<0){
+      var b=document.createElement('span');
+      b.className='badge overdue';b.style.marginLeft='5px';b.textContent='期限超過';
+      metaDiv.appendChild(b);
+    } else if(diff<=1){
+      var b=document.createElement('span');
+      b.className='badge due-soon';b.style.marginLeft='5px';b.textContent='期限間近';
+      metaDiv.appendChild(b);
+    }
+    infoDiv.appendChild(nameDiv);
+    infoDiv.appendChild(metaDiv);
+    card.appendChild(checkDiv);
+    card.appendChild(iconDiv);
+    card.appendChild(infoDiv);
+    card.addEventListener('click',function(){toggleReturnSelect(card);});
+    container.appendChild(card);
+  });
+  confirmBtn.disabled=true;
+  // 返却ボタンにSupabase書き込みを登録
+  var newBtn=confirmBtn.cloneNode(true);
+  confirmBtn.parentNode.replaceChild(newBtn,confirmBtn);
+  newBtn.addEventListener('click',doReturn);
+}
+
+// 返却処理（Supabase書き込み）
+function doReturn(){
+  var selected=document.querySelectorAll('.return-item-card.selected');
+  if(selected.length===0) return;
+  var btn=document.getElementById('return-confirm-btn');
+  btn.textContent='処理中...';
+  btn.disabled=true;
+
+  var now=toJST(new Date());
+  var promises=[];
+
+  selected.forEach(function(card){
+    var loanId=card.dataset.loanId;
+    var resourceId=card.dataset.resourceId;
+    // ✅ 認証トークン付きsbPatchで書き込み
+    var p1=sbPatch('loans?loan_id=eq.'+encodeURIComponent(loanId), {status:'returned',returned_at:now});
+    var p2=sbPatch('resources?resource_id=eq.'+encodeURIComponent(resourceId), {status:'available'});
+    promises.push(p1,p2);
+    // キャッシュ更新
+    allResources.forEach(function(r){if(r.resource_id===resourceId)r.status='available';});
+  });
+
+  Promise.all(promises)
+    .then(function(){
+      document.getElementById('return-datetime').textContent=fmtDT(new Date());
+      loadMyLoans(currentUser.email);
+      btn.textContent='選択した備品を返却する';
+      btn.disabled=true;
+      showScreen('return-success');setNav('home');
+    })
+    .catch(function(err){
+      console.error('返却エラー:',err);
+      alert('返却処理に失敗しました。再度お試しください。');
+      btn.textContent='選択した備品を返却する';
+      btn.disabled=false;
+    });
+}
+
+// ==============================
+// Supabase接続コード（DBパスワード認証）
+// ==============================
+
+var SUPABASE_URL = 'https://yrysfqesajkyypjrzxhu.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_2XTfLJbtFp4lPdIc97B4zQ_f94WLZUk';
+var currentUser = null;
+var _sbClient = null;
+
+// ── Supabase JS SDK クライアント ────────────────
+function getSB() {
+  if (!_sbClient) {
+    _sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  }
+  return _sbClient;
+}
+
+// ── REST API ラッパー（ログイン後のデータ取得用） ───
+function sbFetch(path, options) {
+  return getSB().auth.getSession().then(function(res) {
+    var token = (res.data && res.data.session) ? res.data.session.access_token : SUPABASE_KEY;
+    var url = SUPABASE_URL + '/rest/v1/' + path;
+    var headers = {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    };
+    return fetch(url, Object.assign({ headers: headers }, options))
+      .then(function(r) {
+        if (!r.ok) return r.text().then(function(t) { throw new Error(t); });
+        return r.json();
+      });
+  });
+}
+
+// ── 書き込み用fetch（return=minimal、認証トークン付き） ──
+function sbPatch(path, body) {
+  return getSB().auth.getSession().then(function(res) {
+    var token = (res.data && res.data.session) ? res.data.session.access_token : SUPABASE_KEY;
+    return fetch(SUPABASE_URL + '/rest/v1/' + path, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(body)
+    }).then(function(r) {
+      if (!r.ok) return r.text().then(function(t) { throw new Error(t); });
+      return r;
+    });
+  });
+}
+
+function sbInsert(path, body) {
+  return getSB().auth.getSession().then(function(res) {
+    var token = (res.data && res.data.session) ? res.data.session.access_token : SUPABASE_KEY;
+    return fetch(SUPABASE_URL + '/rest/v1/' + path, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(body)
+    }).then(function(r) {
+      if (!r.ok) return r.text().then(function(t) { throw new Error(t); });
+      return r;
+    });
+  });
+}
+
+// ── 起動 ──────────────────────────────────────
+function initApp() {
+  setAppVisible(false);
+  getSB().auth.getSession().then(function(res) {
+    var session = res.data && res.data.session;
+    if (session) {
+      // セッション有効 → プロフィール取得してログイン完了
+      fetchProfileAndLogin(session.user);
+    } else {
+      showLoginScreen('');
+    }
+  });
+  // セッション変化を監視（ログアウト検知など）
+  getSB().auth.onAuthStateChange(function(event, session) {
+    if (event === 'SIGNED_OUT') {
+      currentUser = null;
+      setAppVisible(false);
+      showLoginScreen('');
+    }
+  });
+}
+
+function setAppVisible(visible) {
+  var val = visible ? '' : 'none';
+  [document.querySelector('.app-container'),
+   document.querySelector('header.header'),
+   document.querySelector('nav.bottom-nav')
+  ].forEach(function(el) { if (el) el.style.display = val; });
+}
+
+function removeLoginScreen() {
+  var el = document.getElementById('login-screen');
+  if (el) el.remove();
+}
+
+// ── ログイン画面（メール＋パスワード1画面）──────
+function showLoginScreen(prefillEmail, errorMsg) {
+  removeLoginScreen();
+  var screen = document.createElement('div');
+  screen.id = 'login-screen';
+  screen.style.cssText = 'min-height:100vh;background:#f0f5fc;display:flex;align-items:center;justify-content:center;font-family:Noto Sans JP,sans-serif;';
+  var box = document.createElement('div');
+  box.style.cssText = 'background:#fff;border-radius:16px;padding:40px 32px;width:90%;max-width:360px;box-shadow:0 8px 32px rgba(26,74,138,.16);text-align:center;';
+  // ✅ XSS対策: ログイン画面もcreateElementで構築
+  var schoolLabel = document.createElement('div');
+  schoolLabel.style.cssText = 'font-size:11px;color:#9aa3b5;letter-spacing:.08em;margin-bottom:4px;';
+  schoolLabel.textContent = '本郷中学・高等学校';
+  var sysLabel = document.createElement('div');
+  sysLabel.style.cssText = 'font-size:20px;font-weight:700;color:#1a4a8a;margin-bottom:24px;';
+  sysLabel.textContent = '備品管理システム';
+  var emailLabel = document.createElement('div');
+  emailLabel.style.cssText = 'text-align:left;font-size:12px;font-weight:600;color:#5a6378;margin-bottom:6px;';
+  emailLabel.textContent = 'メールアドレス';
+  var emailInp2 = document.createElement('input');
+  emailInp2.id = 'l-email'; emailInp2.type = 'email';
+  emailInp2.placeholder = 'xxxx@hongo.ed.jp'; emailInp2.autocomplete = 'email';
+  emailInp2.style.cssText = 'width:100%;padding:12px 14px;border:1.5px solid #e2e6ef;border-radius:8px;font-size:14px;box-sizing:border-box;margin-bottom:12px;outline:none;font-family:inherit;';
+  var pwLabel = document.createElement('div');
+  pwLabel.style.cssText = 'text-align:left;font-size:12px;font-weight:600;color:#5a6378;margin-bottom:6px;';
+  pwLabel.textContent = 'パスワード';
+  var pwWrap = document.createElement('div');
+  pwWrap.style.cssText = 'position:relative;margin-bottom:12px;';
+  var pwInp2 = document.createElement('input');
+  pwInp2.id = 'l-pw'; pwInp2.type = 'password';
+  pwInp2.placeholder = 'パスワードを入力'; pwInp2.autocomplete = 'current-password';
+  pwInp2.style.cssText = 'width:100%;padding:12px 44px 12px 14px;border:1.5px solid #e2e6ef;border-radius:8px;font-size:14px;box-sizing:border-box;outline:none;font-family:inherit;';
+  var pwToggle = document.createElement('button');
+  pwToggle.id = 'l-pw-toggle'; pwToggle.type = 'button'; pwToggle.textContent = '👁';
+  pwToggle.style.cssText = 'position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:#9aa3b5;padding:0;line-height:1;';
+  pwWrap.appendChild(pwInp2); pwWrap.appendChild(pwToggle);
+  var errDiv = document.createElement('div');
+  errDiv.id = 'l-err';
+  errDiv.style.cssText = 'color:#c0392b;font-size:12px;min-height:18px;margin-bottom:10px;';
+  errDiv.textContent = errorMsg || '';
+  var loginBtn = document.createElement('button');
+  loginBtn.id = 'l-btn'; loginBtn.textContent = 'ログイン';
+  loginBtn.style.cssText = 'width:100%;padding:13px;background:linear-gradient(135deg,#1a4a8a,#2a5fa8);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;';
+  var autoNote = document.createElement('div');
+  autoNote.style.cssText = 'margin-top:10px;font-size:11px;color:#9aa3b5;';
+  autoNote.textContent = '次回から自動でログインします';
+  [schoolLabel,sysLabel,emailLabel,emailInp2,pwLabel,pwWrap,errDiv,loginBtn,autoNote].forEach(function(el){box.appendChild(el);});
+  screen.appendChild(box);
+  document.body.insertBefore(screen, document.body.firstChild);
+
+  var emailInp = box.querySelector('#l-email');
+  var pwInp    = box.querySelector('#l-pw');
+  var btn      = box.querySelector('#l-btn');
+
+  if (prefillEmail) emailInp.value = prefillEmail;
+
+  btn.addEventListener('click', function() { doLogin(); });
+  pwInp.addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
+  emailInp.addEventListener('keydown', function(e) { if (e.key === 'Enter') pwInp.focus(); });
+  // ⑤ パスワード表示トグル
+  var toggleBtn = box.querySelector('#l-pw-toggle');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', function() {
+      if (pwInp.type === 'password') {
+        pwInp.type = 'text';
+        toggleBtn.textContent = '🙈';
+      } else {
+        pwInp.type = 'password';
+        toggleBtn.textContent = '👁';
+      }
+    });
+  }
+
+  setTimeout(function() {
+    if (prefillEmail) pwInp.focus();
+    else emailInp.focus();
+  }, 100);
+}
+
+function doLogin() {
+  var emailInp = document.getElementById('l-email');
+  var pwInp    = document.getElementById('l-pw');
+  var errEl    = document.getElementById('l-err');
+  var btn      = document.getElementById('l-btn');
+  var email    = emailInp ? emailInp.value.trim() : '';
+  var password = pwInp    ? pwInp.value           : '';
+
+  errEl.textContent = '';
+  if (!email || email.indexOf('@') < 0) {
+    errEl.textContent = 'メールアドレスを正しく入力してください';
+    emailInp.focus();
+    return;
+  }
+  if (!password) {
+    errEl.textContent = 'パスワードを入力してください';
+    pwInp.focus();
+    return;
+  }
+  btn.textContent = '確認中...';
+  btn.disabled = true;
+  emailInp.disabled = true;
+  pwInp.disabled = true;
+
+  // ✅ Supabase Auth でサインイン（平文パスワード比較を廃止）
+  getSB().auth.signInWithPassword({ email: email, password: password })
+    .then(function(res) {
+      if (res.error) {
+        var msg = 'ログインに失敗しました。メールアドレスまたはパスワードを確認してください。';
+        showLoginScreen(email, msg);
+        return;
+      }
+      fetchProfileAndLogin(res.data.user);
+    })
+    .catch(function(err) {
+      console.error('ログインエラー:', err);
+      showLoginScreen('', '通信エラーが発生しました。再度お試しください。');
+    });
+}
+
+// ── Auth後にprofilesテーブルからユーザー情報取得 ──
+function fetchProfileAndLogin(authUser) {
+  sbFetch('profiles?id=eq.' + encodeURIComponent(authUser.id) + '&limit=1')
+    .then(function(rows) {
+      if (!rows || rows.length === 0) {
+        // profilesレコードがない場合はメール情報だけで継続
+        loginSuccess({ id: authUser.id, email: authUser.email, name: authUser.email.split('@')[0], role: 'staff' });
+        return;
+      }
+      var profile = rows[0];
+      loginSuccess({
+        id:    authUser.id,
+        email: authUser.email,
+        name:  profile.name,
+        role:  profile.role
+      });
+    })
+    .catch(function(err) {
+      console.error('プロフィール取得エラー:', err);
+      // profilesが取得できなくてもログイン自体は継続
+      loginSuccess({ id: authUser.id, email: authUser.email, name: authUser.email.split('@')[0], role: 'staff' });
+    });
+}
+
+function loginSuccess(user) {
+  removeLoginScreen();
+  currentUser = user;
+  setAppVisible(true);
+  document.querySelectorAll('#user-name-display').forEach(function(el) { el.textContent = user.name; });
+  var avatarEl = document.getElementById('user-avatar-display');
+  if (avatarEl) avatarEl.textContent = user.name[0];
+  var headerAvatarEl = document.getElementById('header-avatar-display');
+  if (headerAvatarEl) headerAvatarEl.textContent = user.name[0];
+  var heroEl = document.getElementById('hero-name');
+  if (heroEl) heroEl.textContent = user.name;
+  document.querySelectorAll('#confirm-user-email, #mypage-user-email').forEach(function(el) { el.textContent = user.email; });
+  updateMypageRoleBadge();
+  loadResources();
+  loadCategories();
+  loadMyLoans(user.email);
+}
+
+// ── パスワード変更 ────────────────────────────
+function showChangePasswordScreen() {
+  var existing = document.getElementById('pw-change-form');
+  if (existing) { existing.remove(); return; }
+  var mypage = document.getElementById('screen-mypage');
+  if (!mypage) return;
+
+  var form = document.createElement('div');
+  form.id = 'pw-change-form';
+  form.style.cssText = 'background:#fff;border:1.5px solid #e2e6ef;border-radius:12px;padding:20px;margin-top:16px;';
+
+  // inputをinnerHTMLではなくcreateElementで作成（CSP回避）
+  var title = document.createElement('div');
+  title.style.cssText = 'font-size:14px;font-weight:700;color:#1a4a8a;margin-bottom:14px;';
+  title.textContent = 'パスワードを変更する';
+  form.appendChild(title);
+
+  function makeField(labelText, inputId) {
+    var label = document.createElement('div');
+    label.style.cssText = 'font-size:12px;color:#5a6378;margin-bottom:6px;';
+    label.textContent = labelText;
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'position:relative;margin-bottom:10px;';
+    var inp = document.createElement('input');
+    inp.type = 'password';
+    inp.id = inputId;
+    inp.style.cssText = 'width:100%;padding:10px 40px 10px 12px;border:1.5px solid #e2e6ef;border-radius:8px;font-size:14px;box-sizing:border-box;font-family:inherit;outline:none;';
+    var eye = document.createElement('button');
+    eye.type = 'button';
+    eye.textContent = '👁';
+    eye.style.cssText = 'position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;color:#9aa3b5;padding:0;line-height:1;';
+    eye.addEventListener('click', function() {
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+      eye.textContent = inp.type === 'password' ? '👁' : '🙈';
+    });
+    wrap.appendChild(inp);
+    wrap.appendChild(eye);
+    form.appendChild(label);
+    form.appendChild(wrap);
+    return inp;
+  }
+
+  var inpNew     = makeField('新しいパスワード', 'pw-new');
+  var inpConfirm = makeField('新しいパスワード（確認）', 'pw-confirm');
+
+  var errEl = document.createElement('div');
+  errEl.id = 'pw-err';
+  errEl.style.cssText = 'color:#c0392b;font-size:12px;min-height:16px;margin-bottom:8px;';
+  form.appendChild(errEl);
+
+  var saveBtn = document.createElement('button');
+  saveBtn.id = 'pw-save-btn';
+  saveBtn.textContent = '変更を保存';
+  saveBtn.style.cssText = 'width:100%;padding:12px;background:linear-gradient(135deg,#1a4a8a,#2a5fa8);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;';
+  form.appendChild(saveBtn);
+
+  saveBtn.addEventListener('click', function() {
+    var newPw   = inpNew.value;
+    var confirm = inpConfirm.value;
+    errEl.style.color = '#c0392b';
+    errEl.textContent = '';
+    if (!newPw || !confirm) { errEl.textContent = 'すべて入力してください'; return; }
+    if (newPw.length < 8) { errEl.textContent = 'パスワードは8文字以上にしてください'; return; }
+    if (newPw !== confirm) { errEl.textContent = '新しいパスワードが一致しません'; return; }
+    saveBtn.textContent = '保存中...';
+    saveBtn.disabled = true;
+    // ✅ Supabase Auth でパスワード変更（平文をDBに保存しない）
+    getSB().auth.updateUser({ password: newPw })
+      .then(function(res) {
+        if (res.error) throw new Error(res.error.message);
+        errEl.style.color = '#2e7d52';
+        errEl.textContent = '✅ パスワードを変更しました';
+        saveBtn.textContent = '変更を保存';
+        saveBtn.disabled = false;
+        setTimeout(function() { if (form.parentNode) form.remove(); }, 2000);
+      })
+      .catch(function(err) {
+        console.error('PW変更エラー:', err);
+        errEl.textContent = '保存に失敗しました。再度お試しください。';
+        saveBtn.textContent = '変更を保存';
+        saveBtn.disabled = false;
+      });
+  });
+
+  mypage.appendChild(form);
+  inpNew.focus();
+}
+
+// ── データ読み込み ────────────────────────────
+var allCategories  = [];
+var allResources   = [];
+var myLoans        = [];
+var currentParentId = null;
+var currentSubId    = null;
+
+function loadCategories() {
+  sbFetch('categories?order=category_id')
+    .then(function(data) {
+      allCategories = data || [];
+      // resourcesが読み込み済みなら即描画、未読み込みならresources完了後に描画
+      if (allResources.length > 0) renderCategoryGrid();
+    })
+    .catch(function(err) { console.error('カテゴリエラー:', err); });
+}
+
+function loadResources() {
+  sbFetch('resources?order=resource_id')
+    .then(function(data) {
+      allResources = data || [];
+      // categoriesが読み込み済みなら描画
+      if (allCategories.length > 0) renderCategoryGrid();
+    })
+    .catch(function(err) { console.error('備品エラー:', err); });
+}
+
+function loadMyLoans(email) {
+  sbFetch('loans?user_email=eq.' + encodeURIComponent(email) + '&status=eq.loaned&order=loaned_at.desc')
+    .then(function(data) {
+      myLoans = data || [];
+      renderHomeLoans();
+      updateHomeStats();
+      renderMypageCurrentLoans();
+    })
+    .catch(function(err) { console.error('貸出エラー:', err); });
+}
+
+// ── マイページ ロールバッジ更新 ─────────────────
+function updateMypageRoleBadge() {
+  var chip = document.getElementById('mypage-role-chip');
+  if (!chip || !currentUser) return;
+  chip.textContent = currentUser.role === 'admin' ? '管理者' : 'スタッフ';
+}
+
+// ── マイページ：現在の貸出（動的） ────────────────
+function renderMypageCurrentLoans() {
+  var container = document.getElementById('mypage-current-loans-list');
+  if (!container) return;
+  container.innerHTML = '';
+  if (myLoans.length === 0) {
+    var empty = document.createElement('div');
+    empty.className = 'empty-state';
+    var ei = document.createElement('div'); ei.className = 'empty-icon'; ei.textContent = '📭';
+    var et = document.createElement('div'); et.className = 'empty-text'; et.textContent = '現在借りている備品はありません';
+    empty.appendChild(ei); empty.appendChild(et);
+    container.appendChild(empty);
+    return;
+  }
+  var today = new Date(); today.setHours(0,0,0,0);
+  myLoans.forEach(function(loan) {
+    var res = allResources.filter(function(r) { return r.resource_id === loan.resource_id; })[0] || {};
+    var due = new Date(loan.due_date); due.setHours(0,0,0,0);
+    var diff = Math.round((due - today) / 864e5);
+    var badgeClass = diff < 0 ? 'overdue' : diff <= 1 ? 'due-soon' : 'active';
+    var badgeText  = diff < 0 ? '期限超過' : diff <= 1 ? '期限間近' : '貸出中';
+    var card = document.createElement('div');
+    card.className = 'loan-card';
+    card.style.cursor = 'pointer';
+    var iconDiv = document.createElement('div');
+    iconDiv.className = 'loan-icon';
+    iconDiv.textContent = res.icon || '📦';
+    var infoDiv = document.createElement('div');
+    infoDiv.className = 'loan-info';
+    var nameDiv = document.createElement('div');
+    nameDiv.className = 'loan-name';
+    nameDiv.textContent = res.name || '（備品名不明）';
+    if (res.number) {
+      var ns = document.createElement('span'); ns.className = 'item-number';
+      ns.textContent = res.number;
+      nameDiv.appendChild(document.createTextNode(' ')); nameDiv.appendChild(ns);
+    }
+    var metaDiv = document.createElement('div');
+    metaDiv.className = 'loan-meta';
+    metaDiv.textContent = '返却期限: ' + (loan.due_date ? loan.due_date.slice(0,10) : '—');
+    infoDiv.appendChild(nameDiv); infoDiv.appendChild(metaDiv);
+    var statusDiv = document.createElement('div');
+    statusDiv.className = 'loan-status';
+    var badge = document.createElement('span');
+    badge.className = 'badge ' + badgeClass;
+    badge.textContent = badgeText;
+    var retBtn = document.createElement('button');
+    retBtn.className = 'return-btn';
+    retBtn.textContent = '返却';
+    statusDiv.appendChild(badge); statusDiv.appendChild(retBtn);
+    card.appendChild(iconDiv); card.appendChild(infoDiv); card.appendChild(statusDiv);
+    var loanId = loan.loan_id; var resourceId = loan.resource_id;
+    card.addEventListener('click', function() {
+      goToDetailReadOnly((res.name||'') + (res.number ? ' ' + res.number : ''), res.icon||'📦', res.name||'', resourceId);
+    });
+    retBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (!confirm((res.name||'') + (res.number ? ' ' + res.number : '') + 'を返却しますか？')) return;
+      retBtn.textContent = '処理中'; retBtn.disabled = true;
+      var now = toJST(new Date());
+      Promise.all([
+        sbPatch('loans?loan_id=eq.' + encodeURIComponent(loanId), {status:'returned', returned_at:now}),
+        sbPatch('resources?resource_id=eq.' + encodeURIComponent(resourceId), {status:'available'})
+      ]).then(function() {
+        allResources.forEach(function(r) { if (r.resource_id === resourceId) r.status = 'available'; });
+        loadMyLoans(currentUser.email);
+        renderCategoryGrid();
+      }).catch(function() {
+        alert('返却処理に失敗しました。');
+        retBtn.textContent = '返却'; retBtn.disabled = false;
+      });
+    });
+    container.appendChild(card);
+  });
+}
+
+// ── マイページ：過去の貸出履歴（動的） ───────────
+function loadMypageHistory(email) {
+  var container = document.getElementById('mypage-history-list');
+  if (!container) return;
+  container.innerHTML = '<div style="text-align:center;color:var(--gray-400);padding:20px;font-size:13px;">読み込み中…</div>';
+  sbFetch('loans?user_email=eq.' + encodeURIComponent(email) + '&status=eq.returned&order=returned_at.desc&limit=20')
+    .then(function(data) {
+      container.innerHTML = '';
+      if (!data || data.length === 0) {
+        var empty = document.createElement('div');
+        empty.className = 'empty-state';
+        var ei = document.createElement('div'); ei.className = 'empty-icon'; ei.textContent = '📜';
+        var et = document.createElement('div'); et.className = 'empty-text'; et.textContent = '過去の貸出履歴はありません';
+        empty.appendChild(ei); empty.appendChild(et);
+        container.appendChild(empty);
+        return;
+      }
+      data.forEach(function(loan) {
+        var res = allResources.filter(function(r) { return r.resource_id === loan.resource_id; })[0] || {};
+        var card = document.createElement('div');
+        card.className = 'history-card';
+        card.style.cursor = 'pointer';
+        var iconDiv = document.createElement('div');
+        iconDiv.className = 'loan-icon';
+        iconDiv.textContent = res.icon || '📦';
+        var infoDiv = document.createElement('div');
+        infoDiv.className = 'loan-info';
+        var nameDiv = document.createElement('div');
+        nameDiv.className = 'loan-name';
+        nameDiv.textContent = res.name || '（備品名不明）';
+        if (res.number) {
+          var ns = document.createElement('span'); ns.className = 'item-number';
+          ns.textContent = res.number;
+          nameDiv.appendChild(document.createTextNode(' ')); nameDiv.appendChild(ns);
+        }
+        var metaDiv = document.createElement('div');
+        metaDiv.className = 'loan-meta';
+        var lFrom = loan.loaned_at ? loan.loaned_at.slice(0,10) : '—';
+        var lTo   = loan.returned_at ? loan.returned_at.slice(0,10) : '—';
+        metaDiv.textContent = lFrom + ' 〜 ' + lTo;
+        infoDiv.appendChild(nameDiv); infoDiv.appendChild(metaDiv);
+        var statusDiv = document.createElement('div');
+        statusDiv.className = 'loan-status';
+        var badge = document.createElement('span');
+        badge.className = 'badge returned'; badge.textContent = '返却済';
+        var anotherBtn = document.createElement('button');
+        anotherBtn.className = 'history-quick-btn'; anotherBtn.textContent = 'また借りる';
+        statusDiv.appendChild(badge); statusDiv.appendChild(anotherBtn);
+        card.appendChild(iconDiv); card.appendChild(infoDiv); card.appendChild(statusDiv);
+        var resourceId = loan.resource_id;
+        var clickFn = function() {
+          goToDetailFromHistory((res.name||'') + (res.number ? ' ' + res.number : ''), res.icon||'📦', res.name||'', resourceId);
+        };
+        card.addEventListener('click', clickFn);
+        anotherBtn.addEventListener('click', function(e) { e.stopPropagation(); clickFn(); });
+        container.appendChild(card);
+      });
+    })
+    .catch(function(err) {
+      console.error('履歴取得エラー:', err);
+      container.innerHTML = '<div style="text-align:center;color:var(--gray-400);padding:20px;font-size:13px;">履歴の取得に失敗しました</div>';
+    });
+}
+
+// ── カテゴリグリッド ──────────────────────────
+function renderCategoryGrid() {
+  var grid = document.getElementById('category-grid');
+  if (!grid) return;
+  var parents = allCategories.filter(function(c) { return c.level === '1'; });
+  if (parents.length === 0) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#9aa3b5;padding:20px;">カテゴリがありません</div>';
+    return;
+  }
+  var icons = {'CAT01':'💻','CAT02':'📷','CAT03':'🎤','CAT04':'🖨️','CAT05':'⚽','CAT06':'🔬','CAT07':'🎨','CAT08':'📋','CAT09':'🧹','CAT10':'📦'};
+  grid.innerHTML = '';
+  parents.forEach(function(cat) {
+    var children = allCategories.filter(function(c) { return c.parent_id === cat.category_id; });
+    var childIds = children.map(function(c) { return c.category_id; });
+    var total     = allResources.filter(function(r) { return childIds.indexOf(r.category_id) >= 0; }).length;
+    var available = allResources.filter(function(r) { return childIds.indexOf(r.category_id) >= 0 && r.status === 'available'; }).length;
+    var icon = icons[cat.category_id] || '📦';
+    var card = document.createElement('div');
+    card.className = 'category-card';
+    // ✅ XSS対策: DBの値はtextContentで設定
+    var iconEl = document.createElement('span');
+    iconEl.className = 'category-icon';
+    iconEl.textContent = icon;
+    var nameEl = document.createElement('div');
+    nameEl.className = 'category-name';
+    nameEl.textContent = cat.name;
+    var countEl = document.createElement('div');
+    countEl.className = 'category-count';
+    countEl.textContent = '全' + total + '点';
+    var statusEl = document.createElement('div');
+    if (total === 0) {
+      statusEl.style.cssText = 'font-size:11px;color:#9aa3b5;margin-top:5px;';
+      statusEl.textContent = '備品未登録';
+    } else if (available > 0) {
+      statusEl.className = 'category-available';
+      statusEl.textContent = '✓ ' + available + '点 貸出可能';
+    } else {
+      statusEl.style.cssText = 'font-size:11px;color:#c0392b;margin-top:5px;';
+      statusEl.textContent = '現在すべて貸出中';
+    }
+    card.appendChild(iconEl);
+    card.appendChild(nameEl);
+    card.appendChild(countEl);
+    card.appendChild(statusEl);
+    var catId = cat.category_id;
+    var catName = cat.name;
+    card.addEventListener('click', function() { showItemsByCategory(catId, catName); });
+    grid.appendChild(card);
+  });
+}
+
+// ── 備品一覧 ──────────────────────────────────
+function showItemsByCategory(parentId, parentName) {
+  currentParentId = parentId;
+  document.getElementById('items-title').textContent = parentName;
+  document.getElementById('items-page-title').textContent = parentName;
+  var children = allCategories.filter(function(c) { return c.parent_id === parentId; });
+  var tabsEl = document.getElementById('subcategory-tabs');
+  tabsEl.innerHTML = '';
+  var allTab = document.createElement('div');
+  allTab.className = 'tab active';
+  allTab.textContent = 'すべて';
+  allTab.addEventListener('click', function() { filterItems(null, allTab); });
+  tabsEl.appendChild(allTab);
+  children.forEach(function(c) {
+    var tab = document.createElement('div');
+    tab.className = 'tab';
+    tab.textContent = c.name;
+    var cid = c.category_id;
+    tab.addEventListener('click', function() { filterItems(cid, tab); });
+    tabsEl.appendChild(tab);
+  });
+  currentSubId = null;
+  renderItemGrid(null, parentId);
+  showScreen('items');
+}
+
+function renderItemGrid(subCategoryId, parentId) {
+  var grid = document.getElementById('item-grid');
+  if (!grid) return;
+  var pid = parentId || currentParentId;
+  var children = allCategories.filter(function(c) { return c.parent_id === pid; });
+  var childIds = children.map(function(c) { return c.category_id; });
+  var items = subCategoryId
+    ? allResources.filter(function(r) { return r.category_id === subCategoryId; })
+    : allResources.filter(function(r) { return childIds.indexOf(r.category_id) >= 0; });
+  if (items.length === 0) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#9aa3b5;padding:30px;">備品がありません</div>';
+    return;
+  }
+  var parentName = '';
+  allCategories.forEach(function(c) { if (c.category_id === pid) parentName = c.name; });
+  grid.innerHTML = '';
+  items.forEach(function(item) {
+    var subName = '';
+    allCategories.forEach(function(c) { if (c.category_id === item.category_id) subName = c.name; });
+    var badge    = parentName + (subName ? ' › ' + subName : '');
+    var isLoaned = item.status === 'loaned';
+    var loanInfo = myLoans.filter(function(l) { return l.resource_id === item.resource_id; })[0];
+    var card = document.createElement('div');
+    card.className = 'item-card' + (isLoaned ? ' unavailable' : '');
+    // ✅ XSS対策: DBの値はtextContentで設定
+    var nameDiv = document.createElement('div');
+    nameDiv.className = 'item-name';
+    nameDiv.textContent = item.name;
+    if (item.number) {
+      var numSpan = document.createElement('span');
+      numSpan.className = 'item-number';
+      numSpan.textContent = item.number;
+      nameDiv.appendChild(document.createTextNode(' '));
+      nameDiv.appendChild(numSpan);
+    }
+    var descDiv = document.createElement('div');
+    descDiv.className = 'item-desc';
+    descDiv.textContent = item.description || '';
+    card.appendChild(nameDiv);
+    card.appendChild(descDiv);
+    if (loanInfo) {
+      var dueDiv = document.createElement('div');
+      dueDiv.className = 'item-return-date';
+      dueDiv.textContent = '📅 返却予定: ' + loanInfo.due_date;
+      card.appendChild(dueDiv);
+    }
+    var footer = document.createElement('div');
+    footer.className = 'item-footer';
+    var statusSpan = document.createElement('span');
+    statusSpan.className = 'status-dot';
+    var dot = document.createElement('span');
+    dot.className = 'dot ' + (isLoaned ? 'loaned' : 'available');
+    statusSpan.appendChild(dot);
+    statusSpan.appendChild(document.createTextNode(isLoaned ? '貸出中' : '貸出可能'));
+    footer.appendChild(statusSpan);
+    if (isLoaned) {
+      var reserveBtn = document.createElement('button');
+      reserveBtn.className = 'reserve-btn';
+      reserveBtn.textContent = '予約';
+      footer.appendChild(reserveBtn);
+    } else {
+      var borrowBtn = document.createElement('button');
+      borrowBtn.className = 'borrow-btn';
+      borrowBtn.textContent = '借りる';
+      footer.appendChild(borrowBtn);
+    }
+    card.appendChild(footer);
+    if (!isLoaned) {
+      var icon = item.icon || '📦';
+      var rid  = item.resource_id;
+      var dname = item.name + ' ' + (item.number||'');
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', function() { goToDetailBorrowable(dname, icon, badge, rid); });
+      var btn = card.querySelector('.borrow-btn');
+      if (btn) btn.addEventListener('click', function(e) { e.stopPropagation(); goToDetailBorrowable(dname, icon, badge, rid); });
+    }
+    grid.appendChild(card);
+  });
+}
+
+function filterItems(subCategoryId, tabEl) {
+  currentSubId = subCategoryId;
+  document.querySelectorAll('#subcategory-tabs .tab').forEach(function(t) { t.classList.remove('active'); });
+  tabEl.classList.add('active');
+  renderItemGrid(subCategoryId, currentParentId);
+}
+
+// ── ホーム貸出カード ──────────────────────────
+function renderHomeLoans() {
+  var container = document.getElementById('home-loans-container');
+  if (!container) return;
+  if (myLoans.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:#9aa3b5;font-size:13px;">現在借りている備品はありません</div>';
+    return;
+  }
+  var today = new Date(); today.setHours(0,0,0,0);
+  container.innerHTML = '';
+  myLoans.forEach(function(loan) {
+    var due  = new Date(loan.due_date); due.setHours(0,0,0,0);
+    var diff = Math.round((due - today) / 864e5);
+    var badgeClass = diff < 0 ? 'overdue' : diff <= 1 ? 'due-soon' : 'active';
+    var badgeText  = diff < 0 ? '期限超過' : diff <= 1 ? '期限間近' : '貸出中';
+    var res = allResources.filter(function(r) { return r.resource_id === loan.resource_id; })[0] || {};
+    var card = document.createElement('div');
+    card.className = 'loan-card';
+    var loanId = loan.loan_id;
+    var resourceId = loan.resource_id;
+    // ✅ XSS対策: DBの値はtextContentで設定
+    var loanIconDiv = document.createElement('div');
+    loanIconDiv.className = 'loan-icon';
+    loanIconDiv.textContent = res.icon || '📦';
+    var loanInfoDiv = document.createElement('div');
+    loanInfoDiv.className = 'loan-info';
+    var loanNameDiv = document.createElement('div');
+    loanNameDiv.className = 'loan-name';
+    loanNameDiv.textContent = res.name || '';
+    if (res.number) {
+      var numSpan = document.createElement('span');
+      numSpan.className = 'item-number';
+      numSpan.textContent = res.number;
+      loanNameDiv.appendChild(document.createTextNode(' '));
+      loanNameDiv.appendChild(numSpan);
+    }
+    var loanMetaDiv = document.createElement('div');
+    loanMetaDiv.className = 'loan-meta';
+    loanMetaDiv.textContent = '返却予定日: ' + loan.due_date;
+    loanInfoDiv.appendChild(loanNameDiv);
+    loanInfoDiv.appendChild(loanMetaDiv);
+    var loanStatusDiv = document.createElement('div');
+    loanStatusDiv.className = 'loan-status';
+    var badgeSpan = document.createElement('span');
+    badgeSpan.className = 'badge ' + badgeClass;
+    badgeSpan.textContent = badgeText;
+    var returnBtn = document.createElement('button');
+    returnBtn.className = 'return-btn';
+    returnBtn.textContent = '返却';
+    loanStatusDiv.appendChild(badgeSpan);
+    loanStatusDiv.appendChild(returnBtn);
+    card.appendChild(loanIconDiv);
+    card.appendChild(loanInfoDiv);
+    card.appendChild(loanStatusDiv);
+    card.addEventListener('click', function() {
+      goToDetailReadOnly((res.name||'') + ' ' + (res.number||''), res.icon||'📦', res.name||'', resourceId);
+    });
+    returnBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      // 直接このカードの備品を返却
+      if(!confirm((res.name||'')+(res.number?' '+res.number:'')+'を返却しますか？')) return;
+      var btn = e.target;
+      btn.textContent = '処理中';
+      btn.disabled = true;
+      var now = toJST(new Date());
+      // ✅ 認証トークン付きsbPatchで書き込み
+      Promise.all([
+        sbPatch('loans?loan_id=eq.'+encodeURIComponent(loanId), {status:'returned',returned_at:now}),
+        sbPatch('resources?resource_id=eq.'+encodeURIComponent(resourceId), {status:'available'})
+      ])
+      .then(function(){
+        allResources.forEach(function(r){if(r.resource_id===resourceId)r.status='available';});
+        loadMyLoans(currentUser.email);
+        renderCategoryGrid();
+      })
+      .catch(function(err){
+        alert('返却処理に失敗しました。');
+        btn.textContent='返却';
+        btn.disabled=false;
+      });
+    });
+    container.appendChild(card);
+  });
+}
+
+function updateHomeStats() {
+  var today = new Date(); today.setHours(0,0,0,0);
+  var overdue = myLoans.filter(function(l) { var d = new Date(l.due_date); d.setHours(0,0,0,0); return d < today; }).length;
+  var dueSoon = myLoans.filter(function(l) {
+    var d = new Date(l.due_date); d.setHours(0,0,0,0);
+    return Math.round((d-today)/864e5) <= 1 && Math.round((d-today)/864e5) >= 0;
+  }).length;
+  S.hasOverdue = overdue > 0;
+  S.hasDueSoon = dueSoon > 0;
+  var loanNumEl = document.querySelector('.hero-stat .num');
+  if (loanNumEl) loanNumEl.textContent = myLoans.length;
+  updateOverdueUI();
+}
+
+window.addEventListener('load', initApp);
+</script>
+</body>
+</html>
