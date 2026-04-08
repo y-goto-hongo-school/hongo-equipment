@@ -239,33 +239,38 @@ tr:hover td{background:var(--cobalt-ghost);}
 
     <!-- ダッシュボード -->
     <div class="screen active" id="screen-dashboard">
-      <div class="page-header">
-        <div class="page-title">ダッシュボード</div>
-        <div class="page-subtitle" id="dashboard-updated">読み込み中…</div>
+      <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div class="page-title">ダッシュボード</div>
+          <div class="page-subtitle" id="dashboard-updated">読み込み中…</div>
+        </div>
       </div>
+
+      <!-- KPIカード 4枚 -->
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="label">総備品数</div>
+          <div class="label">📦 総備品数</div>
           <div class="value" id="stat-total-resources">—</div>
           <div class="sub">登録備品</div>
         </div>
         <div class="stat-card warn">
-          <div class="label">貸出中</div>
+          <div class="label">📤 貸出中</div>
           <div class="value" id="stat-loaned">—</div>
           <div class="sub">現在の貸出</div>
         </div>
         <div class="stat-card danger">
-          <div class="label">延滞中</div>
+          <div class="label">⚠️ 延滞中</div>
           <div class="value" id="stat-overdue">—</div>
           <div class="sub">期限超過</div>
         </div>
         <div class="stat-card">
-          <div class="label">ユーザー数</div>
+          <div class="label">👥 ユーザー数</div>
           <div class="value" id="stat-users">—</div>
           <div class="sub">登録教職員</div>
         </div>
       </div>
-      <!-- 未対応コメント -->
+
+      <!-- 未対応コメント（alert帯） -->
       <div class="table-card" id="unresolved-comments-card" style="margin-bottom:16px;display:none">
         <div class="table-header" style="background:var(--danger-light);">
           <div class="table-title" style="color:var(--danger);">💬 未対応の返却コメント</div>
@@ -273,7 +278,9 @@ tr:hover td{background:var(--cobalt-ghost);}
         </div>
         <div id="unresolved-comments-list"></div>
       </div>
-      <div class="recent-section">
+
+      <!-- 延滞＋最近の貸出 2列 -->
+      <div class="recent-section" style="margin-bottom:20px;">
         <div class="table-card">
           <div class="table-header">
             <div class="table-title">⚠️ 延滞中の貸出</div>
@@ -287,42 +294,53 @@ tr:hover td{background:var(--cobalt-ghost);}
           <div id="recent-loans-list"><div class="loading"><div class="spinner"></div>読み込み中</div></div>
         </div>
       </div>
-      <!-- グラフセクション -->
-      <div style="margin-top:20px;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
-          <!-- グラフ1: 週次貸出数 -->
-          <div class="table-card">
-            <div class="table-header">
-              <div class="table-title">📈 週次 新規貸出数（過去8週）</div>
-            </div>
-            <div style="padding:16px;position:relative;height:220px;">
-              <canvas id="chart-weekly-loans"></canvas>
-              <div id="chart-weekly-loading" class="loading" style="position:absolute;inset:0;background:#fff;border-radius:var(--radius)"><div class="spinner"></div>読み込み中</div>
-            </div>
-          </div>
-          <!-- グラフ3: カテゴリ別ドーナツ -->
-          <div class="table-card">
-            <div class="table-header">
-              <div class="table-title">🍩 カテゴリ別 貸出件数</div>
-            </div>
-            <div style="padding:16px;position:relative;height:220px;display:flex;align-items:center;justify-content:center;">
-              <canvas id="chart-category-donut" style="max-height:188px;"></canvas>
-              <div id="chart-donut-loading" class="loading" style="position:absolute;inset:0;background:#fff;border-radius:var(--radius)"><div class="spinner"></div>読み込み中</div>
-            </div>
-          </div>
-        </div>
-        <!-- グラフ2: 備品別稼働率ランキング -->
+
+      <!-- グラフ行1：週次貸出 + カテゴリドーナツ -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
         <div class="table-card">
           <div class="table-header">
-            <div class="table-title">🏆 備品別 稼働率ランキング（上位10件・過去90日）</div>
-            <div style="font-size:11px;color:var(--gray-400);">稼働率 ＝ 貸出日数 ÷ 90日</div>
+            <div class="table-title">📈 週次 新規貸出数（過去8週）</div>
           </div>
-          <div style="padding:16px;position:relative;height:280px;">
-            <canvas id="chart-utilization"></canvas>
-            <div id="chart-util-loading" class="loading" style="position:absolute;inset:0;background:#fff;border-radius:var(--radius)"><div class="spinner"></div>読み込み中</div>
+          <div style="padding:16px;position:relative;height:220px;">
+            <canvas id="chart-weekly-loans"></canvas>
+            <div id="chart-weekly-loading" class="loading" style="position:absolute;inset:0;background:#fff;border-radius:var(--radius)"><div class="spinner"></div>読み込み中</div>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header">
+            <div class="table-title">🍩 カテゴリ別 貸出件数</div>
+          </div>
+          <div style="padding:16px;position:relative;height:220px;display:flex;align-items:center;justify-content:center;">
+            <canvas id="chart-category-donut" style="max-height:188px;"></canvas>
+            <div id="chart-donut-loading" class="loading" style="position:absolute;inset:0;background:#fff;border-radius:var(--radius)"><div class="spinner"></div>読み込み中</div>
           </div>
         </div>
       </div>
+
+      <!-- グラフ行2：稼働率ランキング（2列カード）⑱ -->
+      <div class="table-card" style="margin-bottom:16px;">
+        <div class="table-header">
+          <div class="table-title">🏆 備品別 稼働率ランキング（過去90日）</div>
+          <div style="font-size:11px;color:var(--gray-400);">稼働率 ＝ 貸出日数 ÷ 90日　|　[管理番号]付き表示</div>
+        </div>
+        <div style="padding:16px;position:relative;min-height:180px;">
+          <div id="utilization-card-container" style="display:flex;gap:24px;"></div>
+          <div id="chart-util-loading" class="loading" style="position:absolute;inset:0;background:#fff;border-radius:var(--radius)"><div class="spinner"></div>読み込み中</div>
+        </div>
+      </div>
+
+      <!-- グラフ行3：ヒートマップ ⑲ -->
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">🔥 貸出ヒートマップ（曜日 × 時間帯）</div>
+          <div style="font-size:11px;color:var(--gray-400);">色が濃いほど貸出が集中しています（過去180日・平日）</div>
+        </div>
+        <div style="padding:16px;position:relative;overflow-x:auto;">
+          <div id="chart-heatmap-svg"></div>
+          <div id="chart-heatmap-loading" class="loading" style="position:absolute;inset:0;background:#fff;border-radius:var(--radius)"><div class="spinner"></div>読み込み中</div>
+        </div>
+      </div>
+
     </div>
 
     <!-- 貸出管理 -->
@@ -382,6 +400,9 @@ tr:hover td{background:var(--cobalt-ghost);}
               <option value="maintenance">メンテナンス</option>
               <option value="discarded">廃棄済み</option>
             </select>
+            <select class="form-select" id="resource-filter-dept" style="width:140px" onchange="filterResources()">
+              <option value="">部署：すべて</option>
+            </select>
             <input class="search-input" id="resource-search" type="text" placeholder="備品名で検索…" oninput="filterResources()">
           </div>
         </div>
@@ -407,8 +428,9 @@ tr:hover td{background:var(--cobalt-ghost);}
       <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
         <div>
           <div class="page-title">ユーザー管理</div>
-          <div class="page-subtitle">profilesテーブルの氏名・ロール編集ができます（Supabase Auth登録はダッシュボードで行ってください）</div>
+          <div class="page-subtitle">招待メールの送信・氏名・ロールの編集ができます</div>
         </div>
+        <button class="btn btn-primary" onclick="showInviteModal()">✉️ 新規ユーザーを招待</button>
       </div>
       <div class="table-card">
         <div class="table-header">
@@ -523,6 +545,23 @@ tr:hover td{background:var(--cobalt-ghost);}
           <option value="">（未設定）</option>
         </select>
       </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">📝 備品の説明</label>
+        <textarea class="form-input" id="rm-description" rows="2" placeholder="例：教室備え付けのChromebook。Google Classroomに接続済み。" style="resize:vertical;min-height:60px;"></textarea>
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">💡 使い方・注意事項</label>
+        <textarea class="form-input" id="rm-how-to" rows="2" placeholder="例：返却前に必ずCharge。充電ケーブルは本体と一緒に保管。" style="resize:vertical;min-height:60px;"></textarea>
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">🔗 関連リンク（URL）</label>
+        <input class="form-input" id="rm-external-url" type="url" placeholder="例：https://support.google.com/chromebook">
+      </div>
+      <!-- ⑰ 同カテゴリ既存備品パネル -->
+      <div id="rm-sibling-panel" style="grid-column:1/-1;display:none;background:var(--cobalt-ghost);border:1px solid var(--cobalt-pale);border-radius:var(--radius-sm);padding:10px 14px;">
+        <div style="font-size:11px;font-weight:700;color:var(--cobalt);margin-bottom:6px;">📋 同カテゴリの登録済み備品</div>
+        <div id="rm-sibling-list"></div>
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modal-resource')">キャンセル</button>
@@ -532,6 +571,36 @@ tr:hover td{background:var(--cobalt-ghost);}
 </div>
 
 <!-- モーダル：ユーザー編集 -->
+<!-- モーダル：新規ユーザー招待 ⑥ -->
+<div class="modal-overlay" id="modal-invite" style="display:none">
+  <div class="modal">
+    <div class="modal-title">✉️ 新規ユーザーを招待</div>
+    <p style="font-size:12px;color:var(--gray-600);line-height:1.7;margin-bottom:16px;">
+      招待メールを送信します。受信者がメール内のリンクをクリックすると、パスワードを設定してログインできます。
+    </p>
+    <div class="form-group">
+      <label class="form-label">メールアドレス <span style="color:var(--danger)">*</span></label>
+      <input class="form-input" id="inv-email" type="email" placeholder="xxxx@hongo.ed.jp">
+    </div>
+    <div class="form-group">
+      <label class="form-label">氏名 <span style="color:var(--danger)">*</span></label>
+      <input class="form-input" id="inv-name" type="text" placeholder="例：山田 太郎">
+    </div>
+    <div class="form-group">
+      <label class="form-label">ロール</label>
+      <select class="form-select" id="inv-role">
+        <option value="staff">staff（一般教職員）</option>
+        <option value="admin">admin（管理者）</option>
+      </select>
+    </div>
+    <div id="inv-error" style="color:var(--danger);font-size:12px;min-height:18px;margin-bottom:8px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-invite')">キャンセル</button>
+      <button class="btn btn-primary" id="inv-submit-btn" onclick="submitInvite()">招待メールを送信</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-user" style="display:none">
   <div class="modal">
     <div class="modal-title">👤 ユーザー情報を編集</div>
@@ -572,6 +641,10 @@ tr:hover td{background:var(--cobalt-ghost);}
     <div class="form-group">
       <label class="form-label">カテゴリ名 <span style="color:var(--danger)">*</span></label>
       <input class="form-input" id="cm-name" type="text" placeholder="例：電子デバイス">
+    </div>
+    <div class="form-group" id="cm-icon-group">
+      <label class="form-label">アイコン（大分類のみ・絵文字1文字）</label>
+      <input class="form-input" id="cm-icon" type="text" placeholder="例：💻" maxlength="4" style="font-size:20px;width:80px;">
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modal-category')">キャンセル</button>
@@ -1005,6 +1078,7 @@ function loadAllCharts() {
   loadChartWeekly();
   loadChartDonut();
   loadChartUtilization();
+  loadChartHeatmap();
 }
 
 // ── グラフ1: 週次新規貸出数（過去8週）──────────
@@ -1073,78 +1147,103 @@ function loadChartWeekly() {
 }
 
 // ── グラフ2: 備品別稼働率ランキング（上位10件・過去90日）──
+// ── グラフ2: 備品別稼働率ランキング（上位5・下位5・2列カード）⑯⑱ ──
 function loadChartUtilization() {
-  var loading = document.getElementById('chart-util-loading');
+  var container = document.getElementById('utilization-card-container');
+  var loading   = document.getElementById('chart-util-loading');
   var since = new Date();
   since.setDate(since.getDate() - 90);
   var sinceStr = since.toISOString().slice(0, 10);
 
-  sbFetch('loans?loaned_at=gte.' + sinceStr + 'T00:00:00Z&select=resource_id,loaned_at,returned_at,due_date,resources(name)&order=loaned_at.asc')
+  // ⑯ resources(name,number)を取得
+  sbFetch('loans?loaned_at=gte.' + sinceStr + 'T00:00:00Z&select=resource_id,loaned_at,returned_at,due_date,resources(name,number)&order=loaned_at.asc')
     .then(function(data) {
-      // 備品ごとに貸出日数を積算
-      var utilMap = {}; // resource_id -> { name, days }
+      var utilMap = {};
       var today = new Date(); today.setHours(0,0,0,0);
       var sinceD = new Date(sinceStr); sinceD.setHours(0,0,0,0);
       var periodDays = 90;
 
       (data || []).forEach(function(loan) {
-        var name = loan.resources ? loan.resources.name : loan.resource_id;
-        var start = new Date(loan.loaned_at); start.setHours(0,0,0,0);
+        var name   = loan.resources ? loan.resources.name   : loan.resource_id;
+        var number = loan.resources ? (loan.resources.number || '') : '';
+        var start  = new Date(loan.loaned_at); start.setHours(0,0,0,0);
         if (start < sinceD) start = sinceD;
         var endRaw = loan.returned_at ? new Date(loan.returned_at) : (loan.due_date ? new Date(loan.due_date) : today);
         var end = new Date(endRaw); end.setHours(0,0,0,0);
         if (end > today) end = today;
         var days = Math.max(0, Math.round((end - start) / 864e5));
-        if (!utilMap[loan.resource_id]) utilMap[loan.resource_id] = { name: name, days: 0 };
+        if (!utilMap[loan.resource_id]) utilMap[loan.resource_id] = { name: name, number: number, days: 0 };
         utilMap[loan.resource_id].days += days;
       });
 
-      // 稼働率(%)に変換してソート
       var items = Object.values(utilMap).map(function(v) {
-        return { name: v.name, rate: Math.min(100, Math.round(v.days / periodDays * 100)) };
+        return { label: v.name + (v.number ? ' [' + v.number + ']' : ''), rate: Math.min(100, Math.round(v.days / periodDays * 100)) };
       });
       items.sort(function(a, b) { return b.rate - a.rate; });
-      var top10 = items.slice(0, 10);
+
+      var top5  = items.slice(0, 5);
+      var bot5  = items.slice(-5).reverse();
 
       if (loading) loading.style.display = 'none';
-      var ctx = document.getElementById('chart-utilization');
-      if (!ctx) return;
-      if (_chartUtil) _chartUtil.destroy();
+      if (!container) return;
 
-      // 稼働率に応じて色を変える
-      var colors = top10.map(function(item) {
-        if (item.rate >= 70) return 'rgba(192,57,43,0.8)';
-        if (item.rate >= 40) return 'rgba(184,92,0,0.8)';
-        return 'rgba(46,125,82,0.8)';
-      });
+      // ⑱ 2列カード形式で描画
+      container.innerHTML = '';
+      [
+        { title: '🏆 稼働率ランキング TOP 5', items: top5,  colorFn: function(r) {
+            if (r >= 70) return '#c0392b'; if (r >= 40) return '#b85c00'; return '#2e7d52';
+          }, trackColor: 'rgba(26,74,138,0.08)' },
+        { title: '💤 稼働率ランキング BOTTOM 5', items: bot5, colorFn: function() { return '#9aa3b5'; },
+          trackColor: 'rgba(0,0,0,0.04)' }
+      ].forEach(function(col) {
+        var card = document.createElement('div');
+        card.style.cssText = 'flex:1;min-width:0;';
 
-      _chartUtil = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: top10.map(function(i) { return i.name.length > 12 ? i.name.slice(0,12)+'…' : i.name; }),
-          datasets: [{
-            label: '稼働率(%)',
-            data: top10.map(function(i) { return i.rate; }),
-            backgroundColor: colors,
-            borderRadius: 4
-          }]
-        },
-        options: {
-          indexAxis: 'y',
-          responsive: true, maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: { callbacks: { label: function(c) { return ' ' + c.raw + '%'; } } }
-          },
-          scales: {
-            x: { beginAtZero: true, max: 100, ticks: { callback: function(v) { return v + '%'; }, font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
-            y: { ticks: { font: { size: 11 } }, grid: { display: false } }
-          }
+        var h = document.createElement('div');
+        h.style.cssText = 'font-size:12px;font-weight:700;color:var(--cobalt-dark);margin-bottom:12px;';
+        h.textContent = col.title;
+        card.appendChild(h);
+
+        if (col.items.length === 0) {
+          var empty = document.createElement('div');
+          empty.style.cssText = 'font-size:12px;color:var(--gray-400);padding:16px 0;';
+          empty.textContent = 'データがありません';
+          card.appendChild(empty);
         }
+
+        col.items.forEach(function(item, idx) {
+          var row = document.createElement('div');
+          row.style.cssText = 'margin-bottom:10px;';
+
+          var top = document.createElement('div');
+          top.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;';
+          var nm = document.createElement('span');
+          nm.style.cssText = 'font-size:12px;font-weight:600;color:var(--gray-800);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:75%;';
+          nm.textContent = (idx + 1) + '. ' + item.label;
+          var pct = document.createElement('span');
+          pct.style.cssText = 'font-size:12px;font-weight:700;color:' + col.colorFn(item.rate) + ';flex-shrink:0;margin-left:6px;';
+          pct.textContent = item.rate + '%';
+          top.appendChild(nm); top.appendChild(pct);
+
+          var track = document.createElement('div');
+          track.style.cssText = 'height:6px;border-radius:4px;background:' + col.trackColor + ';overflow:hidden;';
+          var bar = document.createElement('div');
+          bar.style.cssText = 'height:100%;width:0;border-radius:4px;background:' + col.colorFn(item.rate) + ';transition:width .6s ease;';
+          track.appendChild(bar);
+
+          row.appendChild(top); row.appendChild(track);
+          card.appendChild(row);
+
+          // アニメーション
+          setTimeout(function(b, r) { b.style.width = r + '%'; }(bar, item.rate), 100 + idx * 80);
+        });
+
+        container.appendChild(card);
       });
     })
     .catch(function() { if (loading) loading.style.display = 'none'; });
 }
+
 
 // ── グラフ3: カテゴリ別 貸出件数ドーナツ ────────
 function loadChartDonut() {
@@ -1201,7 +1300,92 @@ function loadChartDonut() {
     .catch(function() { if (loading) loading.style.display = 'none'; });
 }
 
-function p2(n) { return String(n).padStart(2, '0'); }
+// ── グラフ4: 曜日×時間帯ヒートマップ ⑲ ────────
+function loadChartHeatmap() {
+  var loading = document.getElementById('chart-heatmap-loading');
+  var container = document.getElementById('chart-heatmap-svg');
+  var since = new Date();
+  since.setDate(since.getDate() - 180); // 過去180日
+  var sinceStr = since.toISOString().slice(0, 10);
+
+  sbFetch('loans?loaned_at=gte.' + sinceStr + 'T00:00:00Z&select=loaned_at')
+    .then(function(data) {
+      // 曜日(0=月〜4=金) × 時間帯(0=7時〜10=18時) のマトリクス
+      var DAYS  = ['月','火','水','木','金'];
+      var HOURS = [7,8,9,10,11,12,13,14,15,16,17,18];
+      var matrix = {};
+      DAYS.forEach(function(d) { matrix[d] = {}; HOURS.forEach(function(h) { matrix[d][h] = 0; }); });
+
+      var total = 0;
+      (data || []).forEach(function(loan) {
+        var d = new Date(loan.loaned_at);
+        var dow = d.getDay(); // 0=日,1=月...5=金,6=土
+        if (dow < 1 || dow > 5) return; // 土日除外
+        var dayLabel = DAYS[dow - 1];
+        var hour = d.getHours();
+        if (hour < 7 || hour > 18) return;
+        var h = Math.min(hour, 18);
+        matrix[dayLabel][h]++;
+        total++;
+      });
+
+      var maxVal = 0;
+      DAYS.forEach(function(d) { HOURS.forEach(function(h) { maxVal = Math.max(maxVal, matrix[d][h]); }); });
+
+      if (loading) loading.style.display = 'none';
+      if (!container) return;
+
+      // SVGヒートマップ描画
+      var cellW = 52, cellH = 36, padL = 36, padT = 28, padB = 24;
+      var svgW = padL + cellW * HOURS.length + 4;
+      var svgH = padT + cellH * DAYS.length + padB;
+
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 ' + svgW + ' ' + svgH + '" style="display:block;">';
+
+      // 時間ラベル
+      HOURS.forEach(function(h, hi) {
+        var x = padL + hi * cellW + cellW / 2;
+        svg += '<text x="' + x + '" y="' + (padT - 8) + '" text-anchor="middle" font-size="10" fill="#9aa3b5">' + h + '時</text>';
+      });
+
+      DAYS.forEach(function(day, di) {
+        // 曜日ラベル
+        var y = padT + di * cellH + cellH / 2 + 4;
+        svg += '<text x="' + (padL - 6) + '" y="' + y + '" text-anchor="end" font-size="11" font-weight="600" fill="#5a6378">' + day + '</text>';
+
+        HOURS.forEach(function(h, hi) {
+          var val  = matrix[day][h];
+          var ratio = maxVal > 0 ? val / maxVal : 0;
+          var alpha = Math.round(ratio * 200 + (ratio > 0 ? 30 : 0));
+          var r = 26, g = 74, b = 138; // cobalt
+          if (ratio > 0.6) { r = 192; g = 57; b = 43; }      // 高密度：赤
+          else if (ratio > 0.3) { r = 184; g = 92; b = 0; }  // 中密度：オレンジ
+
+          var fill = val === 0 ? '#f0f2f7' : 'rgba(' + r + ',' + g + ',' + b + ',' + (alpha/255).toFixed(2) + ')';
+          var cx = padL + hi * cellW;
+          var cy = padT + di * cellH;
+
+          svg += '<rect x="' + (cx+2) + '" y="' + (cy+2) + '" width="' + (cellW-4) + '" height="' + (cellH-4) + '" rx="5" fill="' + fill + '">';
+          svg += '<title>' + day + '曜日 ' + h + '時台：' + val + '件</title></rect>';
+
+          if (val > 0) {
+            var textFill = ratio > 0.35 ? '#fff' : '#2c3347';
+            svg += '<text x="' + (cx + cellW/2) + '" y="' + (cy + cellH/2 + 4) + '" text-anchor="middle" font-size="11" font-weight="700" fill="' + textFill + '">' + val + '</text>';
+          }
+        });
+      });
+
+      // 凡例
+      var legY = svgH - 10;
+      svg += '<text x="' + padL + '" y="' + legY + '" font-size="9" fill="#9aa3b5">貸出件数（過去180日・平日のみ・計' + total + '件）</text>';
+
+      svg += '</svg>';
+      container.innerHTML = svg;
+    })
+    .catch(function() { if (loading) loading.style.display = 'none'; });
+}
+
+
 
 // ═══════════════════════════════════════════════
 // 貸出管理
@@ -1210,7 +1394,7 @@ function loadLoans() {
   var tbody = document.getElementById('loans-tbody');
   if (tbody) tbody.innerHTML = '<tr><td colspan="6"><div class="loading"><div class="spinner"></div>読み込み中</div></td></tr>';
 
-  sbFetch('loans?order=loaned_at.desc&select=loan_id,resource_id,user_email,user_name,loaned_at,due_date,returned_at,status,resources(name)')
+  sbFetch('loans?order=loaned_at.desc&select=loan_id,resource_id,user_email,user_name,loaned_at,due_date,returned_at,status,resources(name,number)')
     .then(function(data) {
       allLoans = data || [];
       renderLoans(allLoans);
@@ -1261,6 +1445,12 @@ function renderLoans(data) {
     var tdName = document.createElement('td');
     tdName.style.fontWeight = '600';
     tdName.textContent = loan.resources ? loan.resources.name : '不明';
+    if (loan.resources && loan.resources.number) {
+      var numSpan = document.createElement('span');
+      numSpan.style.cssText = 'display:block;font-size:11px;font-weight:400;color:var(--gray-400);font-family:monospace;';
+      numSpan.textContent = loan.resources.number;
+      tdName.appendChild(numSpan);
+    }
 
     var tdUser = document.createElement('td');
     tdUser.textContent = loan.user_name || loan.user_email || '不明';
@@ -1353,15 +1543,41 @@ function confirmForceReturn() {
 }
 
 // ═══════════════════════════════════════════════
-// 備品管理
+// 採番ユーティリティ（①②⑤共通）
 // ═══════════════════════════════════════════════
+// resource_id: R001形式の連番を自動生成
+function generateNextResourceId() {
+  return sbFetch('resources?select=resource_id&order=resource_id.asc').then(function(rows) {
+    var max = 0;
+    (rows || []).forEach(function(r) {
+      var m = String(r.resource_id || '').match(/^R(\d+)$/i);
+      if (m) max = Math.max(max, parseInt(m[1], 10));
+    });
+    var next = max + 1;
+    return 'R' + String(next).padStart(3, '0');
+  });
+}
+
+// department_id: DEPT01形式の連番を自動生成
+function generateNextDeptId() {
+  return sbFetch('departments?select=department_id&order=department_id.asc').then(function(rows) {
+    var max = 0;
+    (rows || []).forEach(function(r) {
+      var m = String(r.department_id || '').match(/^DEPT(\d+)$/i);
+      if (m) max = Math.max(max, parseInt(m[1], 10));
+    });
+    var next = max + 1;
+    return 'DEPT' + String(next).padStart(2, '0');
+  });
+}
+
 function loadResources() {
   var tbody = document.getElementById('resources-tbody');
   if (tbody) tbody.innerHTML = '<tr><td colspan="5"><div class="loading"><div class="spinner"></div>読み込み中</div></td></tr>';
 
   // カテゴリも同時に取得
-  var p1 = sbFetch('resources?order=resource_id.asc&select=resource_id,name,number,status,category_id,categories(name)');
-  var p2 = allCategories.length > 0 ? Promise.resolve(allCategories) : sbFetch('categories?order=category_id.asc&select=category_id,name,level,parent_id');
+  var p1 = sbFetch('resources?order=resource_id.asc&select=resource_id,name,number,status,category_id,location,department_id,description,how_to,external_url,categories(name)');
+  var p2 = allCategories.length > 0 ? Promise.resolve(allCategories) : sbFetch('categories?order=category_id.asc&select=category_id,name,level,parent_id,icon');
 
   Promise.all([p1, p2]).then(function(results) {
     allResources = results[0] || [];
@@ -1377,9 +1593,11 @@ function loadResources() {
 
 function filterResources() {
   var status = document.getElementById('resource-filter-status').value;
+  var dept   = document.getElementById('resource-filter-dept') ? document.getElementById('resource-filter-dept').value : '';
   var q = document.getElementById('resource-search').value.toLowerCase();
   var filtered = allResources.filter(function(r) {
     if (status && r.status !== status) return false;
+    if (dept   && r.department_id !== dept) return false;
     if (q && !r.name.toLowerCase().includes(q)) return false;
     return true;
   });
@@ -1540,57 +1758,70 @@ function confirmDiscard() {
 }
 
 function showResourceModal(resource) {
+  // ④ allCategoriesが未ロードの場合は先に取得してからモーダルを開く
+  if (allCategories.length === 0) {
+    sbFetch('categories?order=category_id.asc&select=category_id,name,level,parent_id,icon').then(function(rows) {
+      allCategories = rows || [];
+      _openResourceModal(resource);
+    });
+  } else {
+    _openResourceModal(resource);
+  }
+}
+
+function _openResourceModal(resource) {
   editingResourceId = resource ? resource.resource_id : null;
   var title = document.getElementById('resource-modal-title');
   var submit = document.getElementById('resource-modal-submit');
   if (title) title.textContent = resource ? '📦 備品を編集' : '📦 備品を追加';
   if (submit) submit.textContent = resource ? '保存する' : '追加する';
 
-  var nameEl = document.getElementById('rm-name');
-  var numEl = document.getElementById('rm-number');
-  var statusEl = document.getElementById('rm-status');
-  var catEl = document.getElementById('rm-category');
+  var nameEl    = document.getElementById('rm-name');
+  var numEl     = document.getElementById('rm-number');
+  var statusEl  = document.getElementById('rm-status');
+  var catEl     = document.getElementById('rm-category');
+  var locEl     = document.getElementById('rm-location');
+  var deptEl    = document.getElementById('rm-department');
+  var descEl    = document.getElementById('rm-description');
+  var howEl     = document.getElementById('rm-how-to');
+  var urlEl     = document.getElementById('rm-external-url');
+
+  if (nameEl)   nameEl.value   = resource ? resource.name        : '';
+  if (numEl)    numEl.value    = resource ? (resource.number || '') : '';
+  if (statusEl) statusEl.value = resource ? resource.status      : 'available';
+  if (locEl)    locEl.value    = resource ? (resource.location   || '') : '';
+  if (descEl)   descEl.value   = resource ? (resource.description || '') : '';
+  if (howEl)    howEl.value    = resource ? (resource.how_to     || '') : '';
+  if (urlEl)    urlEl.value    = resource ? (resource.external_url || '') : '';
 
   // 大分類セレクトを構築
   var parentCatEl = document.getElementById('rm-parent-category');
   if (parentCatEl) {
     parentCatEl.innerHTML = '<option value="">（大分類を選択）</option>';
-    var parents = allCategories.filter(function(c) { return !c.parent_id || c.level === '1' || c.level === 1 || Number(c.level) === 1; });
+    var parents = allCategories.filter(function(c) {
+      return !c.parent_id || c.level === '1' || c.level === 1 || Number(c.level) === 1;
+    });
     parents.forEach(function(cat) {
       var opt = document.createElement('option');
       opt.value = cat.category_id;
-      opt.textContent = cat.name;
+      opt.textContent = (cat.icon ? cat.icon + ' ' : '') + cat.name;
       parentCatEl.appendChild(opt);
     });
   }
-  // 中分類セレクトをリセット
-  if (catEl) {
-    catEl.innerHTML = '<option value="">（未分類）</option>';
-  }
-
-  if (nameEl) nameEl.value = resource ? resource.name : '';
-  if (numEl) numEl.value = resource ? (resource.number || '') : '';
-  if (statusEl) statusEl.value = resource ? resource.status : 'available';
+  if (catEl) catEl.innerHTML = '<option value="">（未分類）</option>';
 
   // 編集時：既存カテゴリを復元
   if (resource && resource.category_id) {
-    // 中分類かどうか判定
     var thisCat = allCategories.filter(function(c) { return c.category_id === resource.category_id; })[0];
     if (thisCat && thisCat.parent_id) {
-      // 中分類の場合：大分類をセットしてから中分類を展開
       if (parentCatEl) parentCatEl.value = thisCat.parent_id;
       populateChildCategories(thisCat.parent_id, resource.category_id);
     } else if (thisCat) {
-      // 大分類自体が選択されている場合
       if (parentCatEl) parentCatEl.value = resource.category_id;
       populateChildCategories(resource.category_id, null);
     }
   }
 
-  // 保管場所・管理部署を復元
-  var locEl = document.getElementById('rm-location');
-  var deptEl = document.getElementById('rm-department');
-  if (locEl) locEl.value = resource ? (resource.location || '') : '';
   // 管理部署セレクトを構築
   if (deptEl) {
     deptEl.innerHTML = '<option value="">（未設定）</option>';
@@ -1601,15 +1832,49 @@ function showResourceModal(resource) {
     });
     if (resource && resource.department_id) deptEl.value = resource.department_id;
   }
+
+  // ⑰ 同カテゴリの既存備品一覧パネルを更新（大分類変更時にも更新）
+  _updateSiblingPanel(resource ? resource.category_id : null);
+
   document.getElementById('modal-resource').style.display = 'flex';
+}
+
+// ⑰ 同カテゴリ既存備品パネル
+function _updateSiblingPanel(categoryId) {
+  var panel = document.getElementById('rm-sibling-panel');
+  if (!panel) return;
+  if (!categoryId) { panel.style.display = 'none'; return; }
+  var siblings = allResources.filter(function(r) {
+    return r.category_id === categoryId && r.status !== 'discarded';
+  });
+  if (siblings.length === 0) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  var list = document.getElementById('rm-sibling-list');
+  if (!list) return;
+  list.innerHTML = '';
+  siblings.forEach(function(r) {
+    var li = document.createElement('div');
+    li.style.cssText = 'font-size:12px;padding:3px 0;border-bottom:1px solid var(--gray-100);display:flex;gap:6px;';
+    var nm = document.createElement('span');
+    nm.style.flex = '1';
+    nm.textContent = r.name;
+    li.appendChild(nm);
+    if (r.number) {
+      var nb = document.createElement('span');
+      nb.style.cssText = 'font-family:monospace;color:var(--gray-400);font-size:11px;';
+      nb.textContent = r.number;
+      li.appendChild(nb);
+    }
+    list.appendChild(li);
+  });
 }
 
 // 大分類変更時に中分類を更新
 function onParentCategoryChange() {
   var parentId = document.getElementById('rm-parent-category').value;
   populateChildCategories(parentId, null);
+  _updateSiblingPanel(null); // 大分類変更時はリセット
 }
-
 function populateChildCategories(parentId, selectedChildId) {
   var catEl = document.getElementById('rm-category');
   if (!catEl) return;
@@ -1637,16 +1902,21 @@ function submitResource() {
     status: document.getElementById('rm-status').value,
     category_id: catId,
     location: document.getElementById('rm-location').value.trim() || null,
-    department_id: document.getElementById('rm-department').value || null
+    department_id: document.getElementById('rm-department').value || null,
+    description: document.getElementById('rm-description').value.trim() || null,
+    how_to: document.getElementById('rm-how-to').value.trim() || null,
+    external_url: document.getElementById('rm-external-url').value.trim() || null
   };
 
   var op;
   if (editingResourceId) {
     op = sbPatch('resources?resource_id=eq.' + encodeURIComponent(editingResourceId), body);
   } else {
-    // 新規追加：resource_idをクライアント側で生成
-    body.resource_id = 'RES-' + Date.now();
-    op = sbInsert('resources', body);
+    // ⑤ 連番resource_idを生成してINSERT
+    op = generateNextResourceId().then(function(newId) {
+      body.resource_id = newId;
+      return sbInsert('resources', body);
+    });
   }
 
   op.then(function() {
@@ -1781,6 +2051,66 @@ function submitUserEdit() {
 }
 
 // ═══════════════════════════════════════════════
+// ⑥ ユーザー招待機能
+// ═══════════════════════════════════════════════
+function showInviteModal() {
+  document.getElementById('inv-email').value = '';
+  document.getElementById('inv-name').value = '';
+  document.getElementById('inv-role').value = 'staff';
+  document.getElementById('inv-error').textContent = '';
+  var btn = document.getElementById('inv-submit-btn');
+  if (btn) { btn.textContent = '招待メールを送信'; btn.disabled = false; }
+  document.getElementById('modal-invite').style.display = 'flex';
+  setTimeout(function() { document.getElementById('inv-email').focus(); }, 100);
+}
+
+function submitInvite() {
+  var email = document.getElementById('inv-email').value.trim();
+  var name  = document.getElementById('inv-name').value.trim();
+  var role  = document.getElementById('inv-role').value;
+  var errEl = document.getElementById('inv-error');
+  var btn   = document.getElementById('inv-submit-btn');
+
+  errEl.textContent = '';
+  if (!email) { errEl.textContent = 'メールアドレスを入力してください'; return; }
+  if (!name)  { errEl.textContent = '氏名を入力してください'; return; }
+
+  btn.textContent = '送信中...'; btn.disabled = true;
+
+  // Supabase signUp で招待（メール確認が有効な場合、確認メールが届く）
+  getSB().auth.signUp({
+    email: email,
+    password: _generateTempPassword(), // 仮パスワード（本人はメールから設定）
+    options: {
+      data: { name: name },
+      emailRedirectTo: 'https://y-goto-hongo-school.github.io/hongo-equipment/'
+    }
+  }).then(function(res) {
+    if (res.error) throw res.error;
+    var userId = res.data && res.data.user && res.data.user.id;
+    if (!userId) throw new Error('ユーザーIDが取得できませんでした');
+    // profilesテーブルにも登録
+    return sbInsert('profiles', { id: userId, name: name, role: role, is_first_login: true });
+  }).then(function() {
+    closeModal('modal-invite');
+    showToast('✅ 招待メールを送信しました（' + email + '）', 'success');
+    allUsers = []; loadUsers();
+  }).catch(function(err) {
+    console.error('招待エラー:', err);
+    errEl.textContent = 'エラー: ' + (err.message || '招待に失敗しました');
+    btn.textContent = '招待メールを送信'; btn.disabled = false;
+  });
+}
+
+function _generateTempPassword() {
+  // 仮パスワード（本人は招待メールからパスワードを設定するので使われない）
+  var c = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#';
+  var p = '';
+  for (var i = 0; i < 16; i++) p += c[Math.floor(Math.random() * c.length)];
+  return p;
+}
+
+// ═══════════════════════════════════════════════
 // カテゴリ管理
 // ═══════════════════════════════════════════════
 var allCategoriesAdmin = []; // 管理画面用（全件）
@@ -1791,7 +2121,7 @@ function loadCategories() {
   if (!container) return;
   container.innerHTML = '<div class="loading"><div class="spinner"></div>読み込み中</div>';
 
-  sbFetch('categories?order=category_id.asc&select=category_id,name,level,parent_id')
+  sbFetch('categories?order=category_id.asc&select=category_id,name,level,parent_id,icon')
     .then(function(data) {
       allCategoriesAdmin = data || [];
       renderCategoryTree();
@@ -1925,15 +2255,19 @@ function showCategoryModal(type, category, parentId) {
   typeEl.value = type;
   nameEl.value = category ? category.name : '';
 
+  // ⑭ アイコン欄：大分類のみ表示
+  var iconGroup = document.getElementById('cm-icon-group');
+  var iconEl    = document.getElementById('cm-icon');
   if (type === 'child') {
-    // 中分類：親カテゴリセレクトを表示
+    // 中分類：親カテゴリセレクトを表示、アイコン非表示
+    if (iconGroup) iconGroup.style.display = 'none';
     parentGroup.style.display = '';
     parentSel.innerHTML = '';
     var parents = allCategoriesAdmin.filter(function(c) { return c.level === '1' || !c.parent_id; });
     parents.forEach(function(p) {
       var opt = document.createElement('option');
       opt.value = p.category_id;
-      opt.textContent = p.name;
+      opt.textContent = (p.icon ? p.icon + ' ' : '') + p.name;
       parentSel.appendChild(opt);
     });
     if (parentId) parentSel.value = parentId;
@@ -1941,6 +2275,9 @@ function showCategoryModal(type, category, parentId) {
 
     titleEl.textContent = category ? '🗂️ 中分類を編集' : '🗂️ 中分類を追加';
   } else {
+    // 大分類：アイコン表示
+    if (iconGroup) iconGroup.style.display = '';
+    if (iconEl)   iconEl.value = category ? (category.icon || '') : '';
     parentGroup.style.display = 'none';
     titleEl.textContent = category ? '🗂️ 大分類を編集' : '🗂️ 大分類を追加';
   }
@@ -1954,6 +2291,8 @@ function submitCategory() {
   var id     = document.getElementById('cm-id').value;
   var type   = document.getElementById('cm-type').value;
   var name   = document.getElementById('cm-name').value.trim();
+  var iconEl = document.getElementById('cm-icon');
+  var icon   = (type === 'parent' && iconEl) ? iconEl.value.trim() : null;
   var parentSel = document.getElementById('cm-parent-id');
 
   if (!name) { showToast('カテゴリ名を入力してください', 'error'); return; }
@@ -1961,13 +2300,15 @@ function submitCategory() {
   var isEdit = !!id;
 
   if (isEdit) {
-    // 編集：nameのみ更新
-    sbPatch('categories?category_id=eq.' + encodeURIComponent(id), { name: name })
+    // ⑭ 編集：name＋icon（大分類のみ）を更新
+    var patchBody = { name: name };
+    if (type === 'parent') patchBody.icon = icon || null;
+    sbPatch('categories?category_id=eq.' + encodeURIComponent(id), patchBody)
       .then(function() {
         closeModal('modal-category');
-        showToast('✅ カテゴリ名を更新しました', 'success');
+        showToast('✅ カテゴリを更新しました', 'success');
         allCategoriesAdmin = [];
-        allCategories = []; // index.html側キャッシュも無効化
+        allCategories = [];
         loadCategories();
       })
       .catch(function(err) {
@@ -1983,6 +2324,7 @@ function submitCategory() {
       body.level = '2';
     } else {
       body.level = '1';
+      if (icon) body.icon = icon;
     }
     sbInsert('categories', body)
       .then(function() {
@@ -2076,7 +2418,19 @@ function confirmDeleteCategory() {
 // ═══════════════════════════════════════════════
 function loadDepartmentsData() {
   sbFetch('departments?order=department_id.asc&select=department_id,name')
-    .then(function(data) { allDepartments = data || []; })
+    .then(function(data) {
+      allDepartments = data || [];
+      // ⑧ 備品管理の部署フィルタに反映
+      var deptFilter = document.getElementById('resource-filter-dept');
+      if (deptFilter) {
+        deptFilter.innerHTML = '<option value="">部署：すべて</option>';
+        allDepartments.forEach(function(d) {
+          var opt = document.createElement('option');
+          opt.value = d.department_id; opt.textContent = d.name;
+          deptFilter.appendChild(opt);
+        });
+      }
+    })
     .catch(function(err) { console.error('部署データ取得エラー:', err); });
 }
 
@@ -2144,18 +2498,24 @@ function submitDept() {
   var id = document.getElementById('dm-id').value;
   var name = document.getElementById('dm-name').value.trim();
   if (!name) { showToast('部署名を入力してください', 'error'); return; }
-  var op;
   if (id) {
-    op = sbPatch('departments?department_id=eq.' + encodeURIComponent(id), { name: name });
+    // 編集
+    sbPatch('departments?department_id=eq.' + encodeURIComponent(id), { name: name })
+      .then(function() {
+        closeModal('modal-dept');
+        showToast('✅ 部署を更新しました', 'success');
+        allDepartments = []; loadDepartments(); loadDepartmentsData();
+      }).catch(function() { showToast('エラーが発生しました', 'error'); });
   } else {
-    var newId = 'DEPT' + String(Date.now()).slice(-4);
-    op = sbInsert('departments', { department_id: newId, name: name });
+    // ① 連番department_id生成
+    generateNextDeptId().then(function(newId) {
+      return sbInsert('departments', { department_id: newId, name: name });
+    }).then(function() {
+      closeModal('modal-dept');
+      showToast('✅ 部署を追加しました', 'success');
+      allDepartments = []; loadDepartments(); loadDepartmentsData();
+    }).catch(function() { showToast('エラーが発生しました', 'error'); });
   }
-  op.then(function() {
-    closeModal('modal-dept');
-    showToast('✅ 部署を保存しました', 'success');
-    allDepartments = []; loadDepartments(); loadDepartmentsData();
-  }).catch(function() { showToast('エラーが発生しました', 'error'); });
 }
 
 // ═══════════════════════════════════════════════
