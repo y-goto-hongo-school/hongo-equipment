@@ -348,6 +348,19 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
           <div class="detail-section-title">🏢 管理部署</div>
           <div class="detail-text" id="detail-dept-text">—</div>
         </div>
+        <!-- ⑩ 説明・使い方・リンク（動的） -->
+        <div class="detail-section" id="detail-desc-section" style="display:none">
+          <div class="detail-section-title">📝 備品の説明</div>
+          <div class="detail-text" id="detail-desc-text">—</div>
+        </div>
+        <div class="detail-section" id="detail-howto-section" style="display:none">
+          <div class="detail-section-title">💡 使い方・注意事項</div>
+          <div class="detail-text" id="detail-howto-text">—</div>
+        </div>
+        <div class="detail-section" id="detail-url-section" style="display:none">
+          <div class="detail-section-title">🔗 関連リンク</div>
+          <a class="external-link" id="detail-url-link" href="#" target="_blank" rel="noopener">リンクを開く ↗</a>
+        </div>
       </div>
     </div>
   </div>
@@ -608,6 +621,26 @@ function setDetailContent(name,icon,badge,asset){
     deptTxt.textContent = dept ? dept.name : res.department_id;
     deptSec.style.display = '';
   } else if (deptSec) { deptSec.style.display = 'none'; }
+
+  // ⑩ 説明・使い方・リンクを動的に表示
+  var descSec   = document.getElementById('detail-desc-section');
+  var descTxt   = document.getElementById('detail-desc-text');
+  var howSec    = document.getElementById('detail-howto-section');
+  var howTxt    = document.getElementById('detail-howto-text');
+  var urlSec    = document.getElementById('detail-url-section');
+  var urlLink   = document.getElementById('detail-url-link');
+  if (res && res.description && descSec && descTxt) {
+    descTxt.textContent = res.description;
+    descSec.style.display = '';
+  } else if (descSec) { descSec.style.display = 'none'; }
+  if (res && res.how_to && howSec && howTxt) {
+    howTxt.textContent = res.how_to;
+    howSec.style.display = '';
+  } else if (howSec) { howSec.style.display = 'none'; }
+  if (res && res.external_url && urlSec && urlLink) {
+    urlLink.href = res.external_url;
+    urlSec.style.display = '';
+  } else if (urlSec) { urlSec.style.display = 'none'; }
 }
 
 // 読み取り専用（ホーム・マイページ現在貸出から）：借りるボタンなし、延長ボタンあり
@@ -839,10 +872,10 @@ function renderReturnScreen(){
     container.appendChild(card);
   });
   confirmBtn.disabled=true;
-  // 返却ボタンにSupabase書き込みを登録
+  // ⑪ コメント入力ステップを経由するよう修正
   var newBtn=confirmBtn.cloneNode(true);
   confirmBtn.parentNode.replaceChild(newBtn,confirmBtn);
-  newBtn.addEventListener('click',doReturn);
+  newBtn.addEventListener('click',showReturnCommentStep);
 }
 
 // 返却処理（Supabase書き込み）
@@ -1276,7 +1309,7 @@ function loadDepartments() {
 }
 
 function loadCategories() {
-  sbFetch('categories?order=category_id')
+  sbFetch('categories?order=category_id&select=category_id,name,level,parent_id,icon')
     .then(function(data) {
       allCategories = data || [];
       // resourcesが読み込み済みなら即描画、未読み込みならresources完了後に描画
@@ -1286,10 +1319,10 @@ function loadCategories() {
 }
 
 function loadResources() {
-  sbFetch('resources?order=resource_id')
+  // ⑩ description/how_to/external_url、⑭ カテゴリiconもSELECT
+  sbFetch('resources?order=resource_id&select=resource_id,name,number,status,category_id,location,department_id,description,how_to,external_url')
     .then(function(data) {
       allResources = data || [];
-      // categoriesが読み込み済みなら描画
       if (allCategories.length > 0) renderCategoryGrid();
     })
     .catch(function(err) { console.error('備品エラー:', err); });
@@ -1370,20 +1403,18 @@ function renderMypageCurrentLoans() {
     });
     retBtn.addEventListener('click', function(e) {
       e.stopPropagation();
-      if (!confirm((res.name||'') + (res.number ? ' ' + res.number : '') + 'を返却しますか？')) return;
-      retBtn.textContent = '処理中'; retBtn.disabled = true;
-      var now = toJST(new Date());
-      Promise.all([
-        sbPatch('loans?loan_id=eq.' + encodeURIComponent(loanId), {status:'returned', returned_at:now}),
-        sbPatch('resources?resource_id=eq.' + encodeURIComponent(resourceId), {status:'available'})
-      ]).then(function() {
-        allResources.forEach(function(r) { if (r.resource_id === resourceId) r.status = 'available'; });
-        loadMyLoans(currentUser.email);
-        renderCategoryGrid();
-      }).catch(function() {
-        alert('返却処理に失敗しました。');
-        retBtn.textContent = '返却'; retBtn.disabled = false;
-      });
+      // ⑫ コメント入力ステップへ（return-selectで該当カードを選択状態にしてから遷移）
+      showScreen('return-select'); setNav('return');
+      setTimeout(function() {
+        var cards = document.querySelectorAll('.return-item-card');
+        cards.forEach(function(c) {
+          if (c.dataset.loanId === loanId) {
+            if (!c.classList.contains('selected')) c.classList.add('selected');
+            var btn = document.getElementById('return-confirm-btn');
+            if (btn) btn.disabled = false;
+          }
+        });
+      }, 80);
     });
     container.appendChild(card);
   });
@@ -1477,7 +1508,8 @@ function renderCategoryGrid() {
     var childIds = children.map(function(c) { return c.category_id; });
     var total     = allResources.filter(function(r) { return childIds.indexOf(r.category_id) >= 0; }).length;
     var available = allResources.filter(function(r) { return childIds.indexOf(r.category_id) >= 0 && r.status === 'available'; }).length;
-    var icon = icons[cat.category_id] || '📦';
+    // ⑭ DBのiconを優先、なければフォールバック
+    var icon = cat.icon || icons[cat.category_id] || '📦';
     var card = document.createElement('div');
     card.className = 'category-card';
     // ✅ XSS対策: DBの値はtextContentで設定
@@ -1696,27 +1728,18 @@ function renderHomeLoans() {
     });
     returnBtn.addEventListener('click', function(e) {
       e.stopPropagation();
-      // 直接このカードの備品を返却
-      if(!confirm((res.name||'')+(res.number?' '+res.number:'')+'を返却しますか？')) return;
-      var btn = e.target;
-      btn.textContent = '処理中';
-      btn.disabled = true;
-      var now = toJST(new Date());
-      // ✅ 認証トークン付きsbPatchで書き込み
-      Promise.all([
-        sbPatch('loans?loan_id=eq.'+encodeURIComponent(loanId), {status:'returned',returned_at:now}),
-        sbPatch('resources?resource_id=eq.'+encodeURIComponent(resourceId), {status:'available'})
-      ])
-      .then(function(){
-        allResources.forEach(function(r){if(r.resource_id===resourceId)r.status='available';});
-        loadMyLoans(currentUser.email);
-        renderCategoryGrid();
-      })
-      .catch(function(err){
-        alert('返却処理に失敗しました。');
-        btn.textContent='返却';
-        btn.disabled=false;
-      });
+      // ⑫ コメント入力ステップへ（return-selectで該当カードを選択状態にしてから遷移）
+      showScreen('return-select'); setNav('return');
+      setTimeout(function() {
+        var cards = document.querySelectorAll('.return-item-card');
+        cards.forEach(function(c) {
+          if (c.dataset.loanId === loanId) {
+            if (!c.classList.contains('selected')) c.classList.add('selected');
+            var btn = document.getElementById('return-confirm-btn');
+            if (btn) btn.disabled = false;
+          }
+        });
+      }, 80);
     });
     container.appendChild(card);
   });
