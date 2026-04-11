@@ -261,11 +261,25 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
   color:#9aa3b5;
   margin-bottom:8px;
 }
+/* × のアクセントカラー */
+.footer-tagline .footer-x{
+  color:var(--cobalt-light);
+  font-weight:700;
+}
 .footer-brand{
   font-size:13px;
   font-weight:600;
-  color:#5a6378;
+  color:#5a6378;   /* ② © 〜 備品管理システム と同色 */
   margin-bottom:2px;
+}
+.footer-brand a{
+  color:inherit;
+  text-decoration:none;
+}
+.footer-brand a:hover{
+  color:var(--cobalt);
+  text-decoration:underline;
+  text-underline-offset:2px;
 }
 .footer-sub{
   font-size:11px;
@@ -280,12 +294,12 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
   margin-bottom:10px;
 }
 .footer-copyright{
-  font-size:10px;
-  color:#b0b8c8;
+  font-size:10px;    /* ④ 住所と同じサイズ */
+  color:#9aa3b5;    /* ④ 住所と同じ色 */
   line-height:1.8;
 }
 .footer-copyright .copy-year{color:#9aa3b5;font-weight:600;}
-.footer-badge{display:none;}   /* ライトテーマでは不要 */
+.footer-badge{display:none;}
 
 /* ========== FLOATING HELP BUTTON ========== */
 .fab-help{position:fixed;bottom:80px;right:16px;z-index:200;display:none;}
@@ -631,9 +645,9 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
 <!-- ========== FOOTER ========== -->
 <footer class="app-footer" style="display:none" id="app-footer">
   <div class="footer-inner">
-    <div class="footer-tagline">School Needs × Digital Craft　|　情報管理部</div>
-    <div class="footer-brand">© 2026 本郷中学校・高等学校　備品管理システム</div>
-    <div class="footer-sub">本郷中学校・高等学校　〒170-0003 東京都豊島区駒込4-11-1　TEL: 03-3917-1456</div>
+    <div class="footer-tagline">School Needs <span class="footer-x">×</span> Digital Craft　|　情報管理部</div>
+    <div class="footer-brand"><span class="copy-year">© 2026</span> <a href="https://www.hongo.ed.jp/" target="_blank" rel="noopener">本郷中学校・高等学校</a>　備品管理システム</div>
+    <div class="footer-sub">〒170-0003 東京都豊島区駒込4-11-1　TEL: 03-3917-1456</div>
     <div class="footer-divider"></div>
     <div class="footer-copyright">
       本アプリのソースコードの無断複製・改変・再配布を禁じます。<br>
