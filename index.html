@@ -224,7 +224,20 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
 .empty-state .empty-icon{font-size:32px;margin-bottom:8px;}
 .empty-state .empty-text{font-size:12px;}
 
-.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--gray-200);display:flex;padding:8px 0 12px;z-index:90;box-shadow:0 -4px 16px rgba(0,0,0,.06);}
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;
+  background:#fff;border-top:1px solid var(--gray-200);
+  display:flex;padding:8px 0 12px;z-index:90;
+  box-shadow:0 -4px 16px rgba(0,0,0,.06);
+  transition:transform .3s cubic-bezier(.4,0,.2,1), opacity .3s ease;
+  transform:translateY(0);
+  will-change:transform;
+}
+.bottom-nav.hide{
+  transform:translateY(110%);
+  opacity:0;
+  pointer-events:none;
+}
 .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px;transition:color .2s;color:var(--gray-400);}
 .nav-item.active{color:var(--cobalt);}
 .nav-icon{font-size:21px;line-height:1;}
@@ -234,19 +247,45 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
 ::-webkit-scrollbar-thumb{background:var(--gray-200);border-radius:4px;}
 
 /* ========== FOOTER ========== */
-.app-footer{background:linear-gradient(135deg,var(--cobalt-dark) 0%,#0d2347 100%);color:rgba(255,255,255,.85);padding:32px 20px 48px;margin-top:auto;position:relative;overflow:hidden;}
-.app-footer::before{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;background:rgba(255,255,255,.03);border-radius:50%;}
-.app-footer::after{content:'';position:absolute;bottom:-40px;left:-40px;width:160px;height:160px;background:rgba(255,255,255,.025);border-radius:50%;}
-.footer-inner{max-width:960px;margin:0 auto;position:relative;z-index:1;}
-.footer-tagline{font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
-.footer-tagline::before,.footer-tagline::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.12);}
-.footer-brand{font-family:'Noto Serif JP',serif;font-size:17px;font-weight:700;color:#fff;margin-bottom:4px;letter-spacing:.04em;}
-.footer-sub{font-size:11px;color:rgba(255,255,255,.5);margin-bottom:18px;letter-spacing:.02em;}
-.footer-divider{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);margin:16px 0;}
-.footer-address{font-size:10px;color:rgba(255,255,255,.4);line-height:1.9;margin-bottom:14px;letter-spacing:.02em;}
-.footer-copyright{font-size:10px;color:rgba(255,255,255,.3);line-height:1.7;}
-.footer-copyright .copy-year{color:rgba(255,255,255,.5);font-weight:600;}
-.footer-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:3px 10px;font-size:9px;font-weight:700;letter-spacing:.06em;color:rgba(255,255,255,.5);margin-bottom:12px;}
+.app-footer{
+  background:#f0f2f7;
+  border-top:1px solid #e2e6ef;
+  padding:28px 20px 52px;   /* 52px: bottom-nav の高さ分余裕を持たせる */
+  text-align:center;
+}
+.footer-inner{max-width:960px;margin:0 auto;}
+.footer-tagline{
+  font-size:11px;
+  font-weight:500;
+  letter-spacing:.12em;
+  color:#9aa3b5;
+  margin-bottom:8px;
+}
+.footer-brand{
+  font-size:13px;
+  font-weight:600;
+  color:#5a6378;
+  margin-bottom:2px;
+}
+.footer-sub{
+  font-size:11px;
+  color:#9aa3b5;
+  margin-bottom:14px;
+}
+.footer-divider{height:1px;background:#e2e6ef;margin:12px auto;max-width:240px;}
+.footer-address{
+  font-size:10px;
+  color:#9aa3b5;
+  line-height:1.9;
+  margin-bottom:10px;
+}
+.footer-copyright{
+  font-size:10px;
+  color:#b0b8c8;
+  line-height:1.8;
+}
+.footer-copyright .copy-year{color:#9aa3b5;font-weight:600;}
+.footer-badge{display:none;}   /* ライトテーマでは不要 */
 
 /* ========== FLOATING HELP BUTTON ========== */
 .fab-help{position:fixed;bottom:80px;right:16px;z-index:200;display:none;}
@@ -592,19 +631,13 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
 <!-- ========== FOOTER ========== -->
 <footer class="app-footer" style="display:none" id="app-footer">
   <div class="footer-inner">
-    <div class="footer-tagline">School Needs × Digital Craft &nbsp;|&nbsp; 情報管理部</div>
-    <div class="footer-brand">本郷中学校・高等学校</div>
-    <div class="footer-sub">備品管理システム　SYS-003</div>
-    <div class="footer-badge">© 2026 情報管理部</div>
+    <div class="footer-tagline">School Needs × Digital Craft　|　情報管理部</div>
+    <div class="footer-brand">© 2026 本郷中学校・高等学校　備品管理システム</div>
+    <div class="footer-sub">本郷中学校・高等学校　〒170-0003 東京都豊島区駒込4-11-1　TEL: 03-3917-1456</div>
     <div class="footer-divider"></div>
-    <div class="footer-address">
-      〒170-0003 東京都豊島区駒込4-11-1<br>
-      TEL: 03-3917-1456
-    </div>
     <div class="footer-copyright">
-      <span class="copy-year">© 2026</span> 本郷中学校・高等学校　備品管理システム<br>
       本アプリのソースコードの無断複製・改変・再配布を禁じます。<br>
-      All rights reserved. Unauthorized reproduction, modification,<br>or redistribution is prohibited.
+      All rights reserved. Unauthorized reproduction, modification, or redistribution is prohibited.
     </div>
   </div>
 </footer>
@@ -2068,6 +2101,42 @@ function _onClickOutsideDrawer(e) {
 }
 
 // チュートリアルのオーバーレイクリック（モーダル外をクリックで閉じない — 意図的）
+
+
+// ── ボトムナビ スクロール自動隠し ────────────────────
+(function() {
+  var lastScrollY = 0;
+  var ticking = false;
+  var NAV_THRESHOLD = 10;   // px: この量以上スクロールしたら反応
+
+  function onScroll() {
+    if (!ticking) {
+      window.requestAnimationFrame(function() {
+        var nav = document.querySelector('nav.bottom-nav');
+        if (!nav || nav.style.display === 'none') { ticking = false; return; }
+        var currentY = window.scrollY || window.pageYOffset;
+        var delta = currentY - lastScrollY;
+
+        if (delta > NAV_THRESHOLD) {
+          // 下スクロール → 隠す
+          nav.classList.add('hide');
+        } else if (delta < -NAV_THRESHOLD) {
+          // 上スクロール → 見せる
+          nav.classList.remove('hide');
+        }
+
+        // ページ最上部では必ず表示
+        if (currentY <= 0) nav.classList.remove('hide');
+
+        lastScrollY = currentY;
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+})();
 
 window.addEventListener('load', initApp);
 </script>
