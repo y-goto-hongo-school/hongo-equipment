@@ -668,28 +668,28 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
         <span class="help-item-icon">📦</span>
         <div class="help-item-text">
           <div class="help-item-title">借りる</div>
-          <div class="help-item-desc">「借りる」タブ → カテゴリ選択 → 備品を選んで返却日を設定</div>
+          <div class="help-item-desc">ホーム「備品を借りる」ボタン、または下タブ「借りる」からカテゴリ選択 → 備品選択 → 返却日設定</div>
         </div>
       </div>
       <div class="help-item">
         <span class="help-item-icon">↩️</span>
         <div class="help-item-text">
           <div class="help-item-title">返却する</div>
-          <div class="help-item-desc">「返却」タブ → 返却する備品を選択 → コメントを入力して完了</div>
+          <div class="help-item-desc">貸出カードの「返却」ボタン／ホーム「返却する」ボタン／下タブ「返却」のいずれかから操作</div>
         </div>
       </div>
       <div class="help-item">
         <span class="help-item-icon">🔄</span>
         <div class="help-item-text">
           <div class="help-item-title">期限延長</div>
-          <div class="help-item-desc">ホームの貸出カード → 備品詳細 → 「返却期限を延長する」</div>
+          <div class="help-item-desc">ホーム「現在の貸出」の備品をタップ → 備品詳細 →「返却期限を延長する」</div>
         </div>
       </div>
       <div class="help-item">
         <span class="help-item-icon">👤</span>
         <div class="help-item-text">
           <div class="help-item-title">マイページ</div>
-          <div class="help-item-desc">現在の貸出・過去履歴の確認、パスワード変更ができます</div>
+          <div class="help-item-desc">貸出履歴の確認・「また借りる」での再貸出・パスワード変更</div>
         </div>
       </div>
     </div>
@@ -1027,7 +1027,7 @@ function renderReturnScreen(){
     checkDiv.className='check-circle';
     var iconDiv=document.createElement('div');
     iconDiv.className='loan-icon';
-    iconDiv.textContent=res.icon||'📦';
+    iconDiv.textContent=getResourceIcon(res);
     var infoDiv=document.createElement('div');
     infoDiv.className='loan-info';
     var nameDiv=document.createElement('div');
@@ -1577,7 +1577,7 @@ function renderMypageCurrentLoans() {
     card.style.cursor = 'pointer';
     var iconDiv = document.createElement('div');
     iconDiv.className = 'loan-icon';
-    iconDiv.textContent = res.icon || '📦';
+    iconDiv.textContent = getResourceIcon(res);
     var infoDiv = document.createElement('div');
     infoDiv.className = 'loan-info';
     var nameDiv = document.createElement('div');
@@ -1604,7 +1604,7 @@ function renderMypageCurrentLoans() {
     card.appendChild(iconDiv); card.appendChild(infoDiv); card.appendChild(statusDiv);
     var loanId = loan.loan_id; var resourceId = loan.resource_id;
     card.addEventListener('click', function() {
-      goToDetailReadOnly((res.name||'') + (res.number ? ' ' + res.number : ''), res.icon||'📦', res.name||'', resourceId);
+      goToDetailReadOnly((res.name||'') + (res.number ? ' ' + res.number : ''), getResourceIcon(res), res.name||'', resourceId);
     });
     retBtn.addEventListener('click', function(e) {
       e.stopPropagation();
@@ -1649,7 +1649,7 @@ function loadMypageHistory(email) {
         card.style.cursor = 'pointer';
         var iconDiv = document.createElement('div');
         iconDiv.className = 'loan-icon';
-        iconDiv.textContent = res.icon || '📦';
+        iconDiv.textContent = getResourceIcon(res);
         var infoDiv = document.createElement('div');
         infoDiv.className = 'loan-info';
         var nameDiv = document.createElement('div');
@@ -1684,7 +1684,7 @@ function loadMypageHistory(email) {
         card.appendChild(iconDiv); card.appendChild(infoDiv); card.appendChild(statusDiv);
         var resourceId = loan.resource_id;
         var clickFn = function() {
-          goToDetailFromHistory((res.name||'') + (res.number ? ' ' + res.number : ''), res.icon||'📦', res.name||'', resourceId);
+          goToDetailFromHistory((res.name||'') + (res.number ? ' ' + res.number : ''), getResourceIcon(res), res.name||'', resourceId);
         };
         card.addEventListener('click', clickFn);
         anotherBtn.addEventListener('click', function(e) { e.stopPropagation(); clickFn(); });
@@ -1855,7 +1855,7 @@ function renderItemGrid(subCategoryId, parentId) {
     }
     card.appendChild(footer);
     if (!isUnavailable) {
-      var icon = item.icon || '📦';
+      var icon = getResourceIcon(item);
       var rid  = item.resource_id;
       var dname = item.name + ' ' + (item.number||'');
       card.style.cursor = 'pointer';
@@ -1897,7 +1897,7 @@ function renderHomeLoans() {
     // ✅ XSS対策: DBの値はtextContentで設定
     var loanIconDiv = document.createElement('div');
     loanIconDiv.className = 'loan-icon';
-    loanIconDiv.textContent = res.icon || '📦';
+    loanIconDiv.textContent = getResourceIcon(res);
     var loanInfoDiv = document.createElement('div');
     loanInfoDiv.className = 'loan-info';
     var loanNameDiv = document.createElement('div');
@@ -1929,7 +1929,7 @@ function renderHomeLoans() {
     card.appendChild(loanInfoDiv);
     card.appendChild(loanStatusDiv);
     card.addEventListener('click', function() {
-      goToDetailReadOnly((res.name||'') + ' ' + (res.number||''), res.icon||'📦', res.name||'', resourceId);
+      goToDetailReadOnly((res.name||'') + ' ' + (res.number||''), getResourceIcon(res), res.name||'', resourceId);
     });
     returnBtn.addEventListener('click', function(e) {
       e.stopPropagation();
@@ -2122,6 +2122,27 @@ function _onClickOutsideDrawer(e) {
 
 // チュートリアルのオーバーレイクリック（モーダル外をクリックで閉じない — 意図的）
 
+
+
+// ── 備品の大分類アイコンを返すヘルパー ──────────────
+function getResourceIcon(res) {
+  if (!res) return '📦';
+  // 1. まず resource 自身に icon があれば使う（将来の拡張用）
+  if (res.icon) return res.icon;
+  // 2. 中分類 → 大分類のアイコンを引く
+  var subCat = allCategories.filter(function(c) { return c.category_id === res.category_id; })[0];
+  if (subCat) {
+    // 大分類
+    var parentCat = allCategories.filter(function(c) { return c.category_id === subCat.parent_id; })[0];
+    if (parentCat && parentCat.icon) return parentCat.icon;
+    // フォールバックマップ（DBにiconがない場合）
+    var fallback = {'CAT01':'💻','CAT02':'📷','CAT03':'🎤','CAT04':'🖨️','CAT05':'⚽','CAT06':'🔬','CAT07':'🎨','CAT08':'📋','CAT09':'🧹','CAT10':'📦'};
+    if (fallback[subCat.parent_id]) return fallback[subCat.parent_id];
+    // 中分類自身にiconがある場合
+    if (subCat.icon) return subCat.icon;
+  }
+  return '📦';
+}
 
 // ── ボトムナビ スクロール自動隠し ────────────────────
 (function() {
