@@ -232,6 +232,65 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
 ::-webkit-scrollbar{width:4px;height:4px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--gray-200);border-radius:4px;}
+
+/* ========== FOOTER ========== */
+.app-footer{background:linear-gradient(135deg,var(--cobalt-dark) 0%,#0d2347 100%);color:rgba(255,255,255,.85);padding:32px 20px 48px;margin-top:auto;position:relative;overflow:hidden;}
+.app-footer::before{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;background:rgba(255,255,255,.03);border-radius:50%;}
+.app-footer::after{content:'';position:absolute;bottom:-40px;left:-40px;width:160px;height:160px;background:rgba(255,255,255,.025);border-radius:50%;}
+.footer-inner{max-width:960px;margin:0 auto;position:relative;z-index:1;}
+.footer-tagline{font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.footer-tagline::before,.footer-tagline::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.12);}
+.footer-brand{font-family:'Noto Serif JP',serif;font-size:17px;font-weight:700;color:#fff;margin-bottom:4px;letter-spacing:.04em;}
+.footer-sub{font-size:11px;color:rgba(255,255,255,.5);margin-bottom:18px;letter-spacing:.02em;}
+.footer-divider{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);margin:16px 0;}
+.footer-address{font-size:10px;color:rgba(255,255,255,.4);line-height:1.9;margin-bottom:14px;letter-spacing:.02em;}
+.footer-copyright{font-size:10px;color:rgba(255,255,255,.3);line-height:1.7;}
+.footer-copyright .copy-year{color:rgba(255,255,255,.5);font-weight:600;}
+.footer-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:3px 10px;font-size:9px;font-weight:700;letter-spacing:.06em;color:rgba(255,255,255,.5);margin-bottom:12px;}
+
+/* ========== FLOATING HELP BUTTON ========== */
+.fab-help{position:fixed;bottom:80px;right:16px;z-index:200;display:none;}
+.fab-btn{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--cobalt),var(--cobalt-mid));color:#fff;border:none;font-size:20px;cursor:pointer;box-shadow:0 4px 18px rgba(26,74,138,.4);display:flex;align-items:center;justify-content:center;transition:transform .2s,box-shadow .2s;font-family:inherit;}
+.fab-btn:hover{transform:scale(1.1);box-shadow:0 6px 24px rgba(26,74,138,.55);}
+.fab-btn.active{background:linear-gradient(135deg,#2c3347,var(--cobalt-dark));}
+.help-drawer{position:fixed;bottom:140px;right:16px;width:min(320px,calc(100vw - 32px));background:#fff;border-radius:16px;box-shadow:0 8px 40px rgba(26,74,138,.22),0 2px 8px rgba(0,0,0,.06);z-index:200;transform:translateY(20px) scale(.96);opacity:0;pointer-events:none;transition:all .25s cubic-bezier(.34,1.56,.64,1);border:1.5px solid var(--cobalt-pale);display:none;}
+.help-drawer.open{transform:translateY(0) scale(1);opacity:1;pointer-events:all;}
+.help-drawer-header{background:linear-gradient(135deg,var(--cobalt-dark),var(--cobalt-mid));padding:16px 18px;border-radius:14px 14px 0 0;color:#fff;}
+.help-drawer-title{font-size:14px;font-weight:700;margin-bottom:2px;}
+.help-drawer-sub{font-size:11px;opacity:.7;}
+.help-drawer-body{padding:14px;}
+.help-item{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--gray-100);}
+.help-item:last-child{border-bottom:none;}
+.help-item-icon{font-size:18px;flex-shrink:0;margin-top:1px;}
+.help-item-text{flex:1;}
+.help-item-title{font-size:12px;font-weight:700;color:var(--cobalt-dark);margin-bottom:2px;}
+.help-item-desc{font-size:11px;color:var(--gray-400);line-height:1.55;}
+.help-drawer-footer{padding:10px 14px 14px;}
+.help-replay-btn{width:100%;padding:9px;background:var(--cobalt-ghost);color:var(--cobalt);border:1.5px solid var(--cobalt-pale);border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;}
+.help-replay-btn:hover{background:var(--cobalt-pale);}
+
+/* ========== TUTORIAL OVERLAY ========== */
+.tutorial-overlay{position:fixed;inset:0;background:rgba(15,45,92,.85);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px);animation:fadeIn .35s ease;}
+.tutorial-modal{background:#fff;border-radius:20px;width:100%;max-width:400px;overflow:hidden;box-shadow:0 16px 60px rgba(0,0,0,.35);}
+.tutorial-header{background:linear-gradient(135deg,var(--cobalt-dark),var(--cobalt-mid));padding:28px 24px 22px;color:#fff;text-align:center;}
+.tutorial-logo{font-size:36px;margin-bottom:10px;}
+.tutorial-header-title{font-family:'Noto Serif JP',serif;font-size:19px;font-weight:700;margin-bottom:4px;}
+.tutorial-header-sub{font-size:12px;opacity:.72;}
+.tutorial-steps{padding:20px 20px 0;}
+.tutorial-step{display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-bottom:1px solid var(--gray-100);}
+.tutorial-step:last-child{border-bottom:none;}
+.tutorial-step-num{width:26px;height:26px;border-radius:50%;background:var(--cobalt);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.tutorial-step-body{flex:1;}
+.tutorial-step-title{font-size:13px;font-weight:700;color:var(--cobalt-dark);margin-bottom:3px;}
+.tutorial-step-desc{font-size:11px;color:var(--gray-400);line-height:1.6;}
+.tutorial-footer{padding:18px 20px 22px;}
+.tutorial-start-btn{width:100%;padding:13px;background:linear-gradient(135deg,var(--cobalt),var(--cobalt-mid));color:#fff;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(26,74,138,.32);transition:all .2s;}
+.tutorial-start-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(26,74,138,.42);}
+.tutorial-skip{text-align:center;margin-top:10px;font-size:11px;color:var(--gray-400);cursor:pointer;padding:4px;}
+.tutorial-skip:hover{color:var(--cobalt);}
+.tutorial-dot-row{display:flex;justify-content:center;gap:6px;margin-bottom:16px;}
+.tutorial-dot{width:6px;height:6px;border-radius:50%;background:var(--gray-200);transition:all .3s;}
+.tutorial-dot.active{background:var(--cobalt);width:18px;border-radius:4px;}
 </style>
 </head>
 <body>
@@ -529,6 +588,88 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
   <div class="nav-item" id="nav-return" onclick="showScreen('return-select');setNav('return')"><span class="nav-icon">↩️</span><span class="nav-label">返却</span></div>
   <div class="nav-item" id="nav-mypage" onclick="showScreen('mypage');setNav('mypage')"><span class="nav-icon">👤</span><span class="nav-label">マイページ</span></div>
 </nav>
+
+<!-- ========== FOOTER ========== -->
+<footer class="app-footer" style="display:none" id="app-footer">
+  <div class="footer-inner">
+    <div class="footer-tagline">School Needs × Digital Craft &nbsp;|&nbsp; 情報管理部</div>
+    <div class="footer-brand">本郷中学校・高等学校</div>
+    <div class="footer-sub">備品管理システム　SYS-003</div>
+    <div class="footer-badge">© 2026 情報管理部</div>
+    <div class="footer-divider"></div>
+    <div class="footer-address">
+      〒170-0003 東京都豊島区駒込4-11-1<br>
+      TEL: 03-3917-1456
+    </div>
+    <div class="footer-copyright">
+      <span class="copy-year">© 2026</span> 本郷中学校・高等学校　備品管理システム<br>
+      本アプリのソースコードの無断複製・改変・再配布を禁じます。<br>
+      All rights reserved. Unauthorized reproduction, modification,<br>or redistribution is prohibited.
+    </div>
+  </div>
+</footer>
+
+<!-- ========== FLOATING HELP FAB ========== -->
+<div class="fab-help" id="fab-help">
+  <div class="help-drawer" id="help-drawer">
+    <div class="help-drawer-header">
+      <div class="help-drawer-title">📖 使い方ガイド</div>
+      <div class="help-drawer-sub">備品管理システムの基本操作</div>
+    </div>
+    <div class="help-drawer-body">
+      <div class="help-item">
+        <span class="help-item-icon">📦</span>
+        <div class="help-item-text">
+          <div class="help-item-title">借りる</div>
+          <div class="help-item-desc">「借りる」タブ → カテゴリ選択 → 備品を選んで返却日を設定</div>
+        </div>
+      </div>
+      <div class="help-item">
+        <span class="help-item-icon">↩️</span>
+        <div class="help-item-text">
+          <div class="help-item-title">返却する</div>
+          <div class="help-item-desc">「返却」タブ → 返却する備品を選択 → コメントを入力して完了</div>
+        </div>
+      </div>
+      <div class="help-item">
+        <span class="help-item-icon">🔄</span>
+        <div class="help-item-text">
+          <div class="help-item-title">期限延長</div>
+          <div class="help-item-desc">ホームの貸出カード → 備品詳細 → 「返却期限を延長する」</div>
+        </div>
+      </div>
+      <div class="help-item">
+        <span class="help-item-icon">👤</span>
+        <div class="help-item-text">
+          <div class="help-item-title">マイページ</div>
+          <div class="help-item-desc">現在の貸出・過去履歴の確認、パスワード変更ができます</div>
+        </div>
+      </div>
+    </div>
+    <div class="help-drawer-footer">
+      <button class="help-replay-btn" onclick="showTutorial(true)">🎓 チュートリアルをもう一度見る</button>
+    </div>
+  </div>
+  <button class="fab-btn" id="fab-btn" onclick="toggleHelpDrawer()" title="使い方を見る">?</button>
+</div>
+
+<!-- ========== TUTORIAL OVERLAY ========== -->
+<div class="tutorial-overlay" id="tutorial-overlay" style="display:none">
+  <div class="tutorial-modal">
+    <div class="tutorial-header">
+      <div class="tutorial-logo">📦</div>
+      <div class="tutorial-header-title">備品管理システムへようこそ</div>
+      <div class="tutorial-header-sub">本郷中学・高等学校　SYS-003</div>
+    </div>
+    <div class="tutorial-dot-row" id="tutorial-dots"></div>
+    <div id="tutorial-steps-container" class="tutorial-steps"></div>
+    <div class="tutorial-footer">
+      <button class="tutorial-start-btn" id="tutorial-main-btn" onclick="tutorialNext()">はじめる →</button>
+      <div class="tutorial-skip" id="tutorial-skip-btn" onclick="closeTutorial()">スキップして使い始める</div>
+    </div>
+  </div>
+</div>
+
 
 <script>
 const S={hasOverdue:false,hasDueSoon:false,selectedDueDate:null,selectedExDate:null,calYear:0,calMonth:0,exCalYear:0,exCalMonth:0,fromBorrow:false,fromHistory:false,currentItemName:'',currentItemIcon:'',currentBadge:'',currentAsset:''};
@@ -1038,6 +1179,11 @@ function setAppVisible(visible) {
    document.querySelector('header.header'),
    document.querySelector('nav.bottom-nav')
   ].forEach(function(el) { if (el) el.style.display = val; });
+  // フッターとFABも合わせて制御
+  var footer = document.getElementById('app-footer');
+  var fab    = document.getElementById('fab-help');
+  if (footer) footer.style.display = val;
+  if (fab)    fab.style.display    = visible ? 'block' : 'none';
 }
 
 function removeLoginScreen() {
@@ -1174,10 +1320,11 @@ function fetchProfileAndLogin(authUser) {
       }
       var profile = rows[0];
       loginSuccess({
-        id:    authUser.id,
-        email: authUser.email,
-        name:  profile.name,
-        role:  profile.role
+        id:           authUser.id,
+        email:        authUser.email,
+        name:         profile.name,
+        role:         profile.role,
+        isFirstLogin: profile.is_first_login !== false  // null/true → true, false → false
       });
     })
     .catch(function(err) {
@@ -1204,6 +1351,17 @@ function loginSuccess(user) {
   loadCategories();
   loadDepartments();
   loadMyLoans(user.email);
+
+  // ── チュートリアル判定 ──────────────────────
+  // is_first_login が true (初回) または localStorageにフラグがない場合に表示
+  var localKey = 'hongo_tutorial_done_' + user.id;
+  var localDone = localStorage.getItem(localKey) === '1';
+  if (user.isFirstLogin && !localDone) {
+    setTimeout(function() { showTutorial(false); }, 600);
+    // Supabase側の is_first_login を false に更新
+    sbPatch('profiles?id=eq.' + encodeURIComponent(user.id), { is_first_login: false })
+      .catch(function(e) { console.warn('is_first_login更新失敗:', e); });
+  }
 }
 
 // ── パスワード変更 ────────────────────────────
@@ -1761,6 +1919,155 @@ function updateHomeStats() {
   if (dueSoonNumEl) dueSoonNumEl.textContent = dueSoon;
   updateOverdueUI();
 }
+
+
+// ══════════════════════════════════════════════════════
+// チュートリアル & フローティングヘルプ
+// ══════════════════════════════════════════════════════
+
+var _tutorialStep = 0;
+var _tutorialFromReplay = false;
+
+var TUTORIAL_PAGES = [
+  {
+    title: 'ようこそ！備品管理システムへ',
+    steps: [
+      { num:'1', title:'備品を借りる',    desc:'画面下の「借りる」タブからカテゴリを選び、備品を選択して返却日を設定します。' },
+      { num:'2', title:'返却する',        desc:'「返却」タブから借りている備品を選択し、コメントを添えて返却します。' },
+      { num:'3', title:'期限延長',        desc:'ホーム画面の貸出カードをタップ → 備品詳細から返却期限を延長できます。' },
+    ]
+  },
+  {
+    title: 'マイページと便利な機能',
+    steps: [
+      { num:'4', title:'マイページ',      desc:'現在借りている備品・過去の履歴を確認できます。「また借りる」ボタンで素早く再貸出。' },
+      { num:'5', title:'右下の？ボタン',  desc:'いつでもこの使い方ガイドを表示できます。チュートリアルの再表示もここから。' },
+      { num:'6', title:'パスワード変更',  desc:'マイページ右上の「🔑 PW変更」ボタンからいつでも変更できます（8文字以上）。' },
+    ]
+  }
+];
+
+function showTutorial(fromReplay) {
+  _tutorialStep = 0;
+  _tutorialFromReplay = fromReplay || false;
+  // ヘルプドロワーを閉じる
+  closeHelpDrawer();
+  var overlay = document.getElementById('tutorial-overlay');
+  if (!overlay) return;
+  overlay.style.display = 'flex';
+  _renderTutorialPage(0);
+}
+
+function closeTutorial() {
+  var overlay = document.getElementById('tutorial-overlay');
+  if (overlay) overlay.style.display = 'none';
+  // ローカルストレージにフラグ保存
+  if (currentUser) {
+    localStorage.setItem('hongo_tutorial_done_' + currentUser.id, '1');
+  }
+}
+
+function tutorialNext() {
+  var total = TUTORIAL_PAGES.length;
+  if (_tutorialStep < total - 1) {
+    _tutorialStep++;
+    _renderTutorialPage(_tutorialStep);
+  } else {
+    closeTutorial();
+  }
+}
+
+function _renderTutorialPage(idx) {
+  var page  = TUTORIAL_PAGES[idx];
+  var total = TUTORIAL_PAGES.length;
+  var container = document.getElementById('tutorial-steps-container');
+  var dotsEl    = document.getElementById('tutorial-dots');
+  var mainBtn   = document.getElementById('tutorial-main-btn');
+  var skipBtn   = document.getElementById('tutorial-skip-btn');
+  if (!container || !dotsEl || !mainBtn) return;
+
+  // ドット
+  dotsEl.innerHTML = '';
+  for (var i = 0; i < total; i++) {
+    var dot = document.createElement('div');
+    dot.className = 'tutorial-dot' + (i === idx ? ' active' : '');
+    dotsEl.appendChild(dot);
+  }
+
+  // ステップ
+  container.innerHTML = '';
+  page.steps.forEach(function(s) {
+    var item = document.createElement('div');
+    item.className = 'tutorial-step';
+    var numEl = document.createElement('div');
+    numEl.className = 'tutorial-step-num';
+    numEl.textContent = s.num;
+    var body = document.createElement('div');
+    body.className = 'tutorial-step-body';
+    var titleEl = document.createElement('div');
+    titleEl.className = 'tutorial-step-title';
+    titleEl.textContent = s.title;
+    var descEl = document.createElement('div');
+    descEl.className = 'tutorial-step-desc';
+    descEl.textContent = s.desc;
+    body.appendChild(titleEl);
+    body.appendChild(descEl);
+    item.appendChild(numEl);
+    item.appendChild(body);
+    container.appendChild(item);
+  });
+
+  // ボタンラベル
+  if (idx < total - 1) {
+    mainBtn.textContent = '次へ →';
+    if (skipBtn) skipBtn.style.display = 'block';
+  } else {
+    mainBtn.textContent = '✓ 使い始める';
+    if (skipBtn) skipBtn.style.display = 'none';
+  }
+}
+
+// ── フローティングヘルプ ──────────────────────────
+function toggleHelpDrawer() {
+  var drawer = document.getElementById('help-drawer');
+  var btn    = document.getElementById('fab-btn');
+  if (!drawer) return;
+  var isOpen = drawer.classList.contains('open');
+  if (isOpen) {
+    closeHelpDrawer();
+  } else {
+    drawer.style.display = 'block';
+    requestAnimationFrame(function() {
+      drawer.classList.add('open');
+    });
+    if (btn) btn.classList.add('active');
+    // ドロワー外クリックで閉じる
+    setTimeout(function() {
+      document.addEventListener('click', _onClickOutsideDrawer);
+    }, 50);
+  }
+}
+
+function closeHelpDrawer() {
+  var drawer = document.getElementById('help-drawer');
+  var btn    = document.getElementById('fab-btn');
+  if (!drawer) return;
+  drawer.classList.remove('open');
+  if (btn) btn.classList.remove('active');
+  setTimeout(function() {
+    if (!drawer.classList.contains('open')) drawer.style.display = 'none';
+  }, 260);
+  document.removeEventListener('click', _onClickOutsideDrawer);
+}
+
+function _onClickOutsideDrawer(e) {
+  var fab = document.getElementById('fab-help');
+  if (fab && !fab.contains(e.target)) {
+    closeHelpDrawer();
+  }
+}
+
+// チュートリアルのオーバーレイクリック（モーダル外をクリックで閉じない — 意図的）
 
 window.addEventListener('load', initApp);
 </script>
