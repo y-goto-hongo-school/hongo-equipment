@@ -1111,6 +1111,9 @@ function loadAllCharts() {
 // ── グラフ1: 週次新規貸出数（過去8週）──────────
 function loadChartWeekly() {
   var loading = document.getElementById('chart-weekly-loading');
+  // ゼロ埋めユーティリティ（p2はPromise変数と衝突するためzz関数として定義）
+  function zz(n) { return String(n).padStart(2, '0'); }
+
   // 過去8週分のloaned_atを取得
   var since = new Date();
   since.setDate(since.getDate() - 56);
@@ -1127,7 +1130,7 @@ function loadChartWeekly() {
         d.setDate(d.getDate() - w * 7);
         var mon = new Date(d);
         mon.setDate(d.getDate() - d.getDay() + 1); // 月曜
-        var key = mon.getFullYear() + '/' + p2(mon.getMonth()+1) + '/' + p2(mon.getDate());
+        var key = mon.getFullYear() + '/' + zz(mon.getMonth()+1) + '/' + zz(mon.getDate());
         weekMap[key] = 0;
         labels.push(key.slice(5)); // MM/DD
       }
@@ -1137,7 +1140,7 @@ function loadChartWeekly() {
         var d = new Date(loan.loaned_at);
         var mon = new Date(d);
         mon.setDate(d.getDate() - d.getDay() + 1);
-        var key = mon.getFullYear() + '/' + p2(mon.getMonth()+1) + '/' + p2(mon.getDate());
+        var key = mon.getFullYear() + '/' + zz(mon.getMonth()+1) + '/' + zz(mon.getDate());
         if (weekMap.hasOwnProperty(key)) weekMap[key]++;
       });
 
@@ -1965,34 +1968,12 @@ function loadUsers() {
   var tbody = document.getElementById('users-tbody');
   if (tbody) tbody.innerHTML = '<tr><td colspan="5"><div class="loading"><div class="spinner"></div>読み込み中</div></td></tr>';
 
-  // セッション確認してからフェッチ
-  getSB().auth.getSession().then(function(res) {
-    var session = res.data && res.data.session;
-    var token = session ? session.access_token : null;
-    console.log('loadUsers session:', session ? 'あり uid=' + session.user.id : 'なし');
-    console.log('loadUsers token先頭:', token ? token.slice(0,20) : 'null');
-
-    if (!token) {
-      if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--danger);padding:24px">セッションが切れています。再ログインしてください。</td></tr>';
-      return;
-    }
-
-    var url = SUPABASE_URL + '/rest/v1/profiles?order=name.asc&select=id,name,role,is_first_login,created_at';
-    fetch(url, {
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': 'Bearer ' + token,
-        'Content-Type': 'application/json'
-      }
-    })
-    .then(function(r) {
-      return r.text().then(function(t) {
-        console.log('loadUsers HTTP status:', r.status);
-        console.log('loadUsers response:', t);
-        if (!r.ok) throw new Error('HTTP ' + r.status + ': ' + t);
-        return JSON.parse(t);
-      });
-    })
+  // ⚠️ セキュリティ注記: profilesテーブルはRLSで
+  //    「自分のレコードのみSELECT可」になっている。
+  //    管理者がこれを実行する場合は、Supabase側に
+  //    「管理者は全件SELECT可」ポリシーが必要。
+  //    引き継ぎ文書の「管理者は全操作」ポリシーを profiles にも適用すること。
+  sbFetch('profiles?order=name.asc&select=id,name,role,is_first_login,created_at')
     .then(function(data) {
       allUsers = data || [];
       var count = document.getElementById('users-count');
@@ -2001,9 +1982,8 @@ function loadUsers() {
     })
     .catch(function(err) {
       console.error('ユーザー取得エラー:', err);
-      if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--danger);padding:24px">データ取得に失敗しました<br><small style="color:var(--gray-400);word-break:break-all;">' + (err.message || String(err)) + '</small></td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--danger);padding:24px">データ取得に失敗しました<br><small style="color:var(--gray-400)">RLSポリシーに「管理者は全件閲覧可」が必要です</small></td></tr>';
     });
-  });
 }
 
 function filterUsers() {
