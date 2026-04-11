@@ -112,10 +112,11 @@ tr:hover td{background:var(--cobalt-ghost);}
 .btn-icon:hover{background:var(--gray-100);}
 
 /* ── モーダル ── */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease;}
-.modal{background:#fff;border-radius:var(--radius-lg);padding:28px;width:90%;max-width:480px;box-shadow:var(--shadow-lg);}
-.modal-title{font-family:'Noto Serif JP',serif;font-size:17px;font-weight:700;color:var(--cobalt-dark);margin-bottom:20px;}
-.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease;padding:16px;box-sizing:border-box;}
+.modal{background:#fff;border-radius:var(--radius-lg);width:90%;max-width:520px;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;max-height:calc(100vh - 32px);overflow:hidden;}
+.modal-title{font-family:'Noto Serif JP',serif;font-size:17px;font-weight:700;color:var(--cobalt-dark);margin-bottom:16px;padding:24px 28px 0;flex-shrink:0;}
+.modal-body{padding:0 28px;overflow-y:auto;flex:1;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;padding:16px 28px 24px;flex-shrink:0;border-top:1px solid var(--gray-100);margin-top:8px;}
 .form-group{margin-bottom:16px;}
 .form-label{display:block;font-size:12px;font-weight:600;color:var(--gray-600);margin-bottom:6px;}
 .form-input,.form-select{width:100%;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);padding:9px 12px;font-size:13px;font-family:inherit;outline:none;transition:border .2s;}
@@ -494,8 +495,10 @@ tr:hover td{background:var(--cobalt-ghost);}
 <div class="modal-overlay" id="modal-force-return" style="display:none">
   <div class="modal">
     <div class="modal-title">📦 強制返却処理</div>
-    <p style="font-size:13px;color:var(--gray-600);line-height:1.7;margin-bottom:12px">以下の貸出を管理者権限で返却済みにします。</p>
-    <div style="background:var(--warning-light);border-radius:var(--radius-sm);padding:14px 16px;font-size:13px;" id="force-return-detail"></div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--gray-600);line-height:1.7;margin-bottom:12px">以下の貸出を管理者権限で返却済みにします。</p>
+      <div style="background:var(--warning-light);border-radius:var(--radius-sm);padding:14px 16px;font-size:13px;" id="force-return-detail"></div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modal-force-return')">キャンセル</button>
       <button class="btn btn-primary" onclick="confirmForceReturn()">返却済みにする</button>
@@ -507,6 +510,7 @@ tr:hover td{background:var(--cobalt-ghost);}
 <div class="modal-overlay" id="modal-resource" style="display:none">
   <div class="modal">
     <div class="modal-title" id="resource-modal-title">📦 備品を追加</div>
+    <div class="modal-body">
     <div class="resource-grid">
       <div class="form-group" style="grid-column:1/-1">
         <label class="form-label">備品名 <span style="color:var(--danger)">*</span></label>
@@ -563,6 +567,7 @@ tr:hover td{background:var(--cobalt-ghost);}
         <div id="rm-sibling-list"></div>
       </div>
     </div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modal-resource')">キャンセル</button>
       <button class="btn btn-primary" id="resource-modal-submit" onclick="submitResource()">追加する</button>
@@ -575,25 +580,27 @@ tr:hover td{background:var(--cobalt-ghost);}
 <div class="modal-overlay" id="modal-invite" style="display:none">
   <div class="modal">
     <div class="modal-title">✉️ 新規ユーザーを招待</div>
-    <p style="font-size:12px;color:var(--gray-600);line-height:1.7;margin-bottom:16px;">
-      招待メールを送信します。受信者がメール内のリンクをクリックすると、パスワードを設定してログインできます。
-    </p>
-    <div class="form-group">
-      <label class="form-label">メールアドレス <span style="color:var(--danger)">*</span></label>
-      <input class="form-input" id="inv-email" type="email" placeholder="xxxx@hongo.ed.jp">
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--gray-600);line-height:1.7;margin-bottom:16px;">
+        招待メールを送信します。受信者がメール内のリンクをクリックすると、パスワードを設定してログインできます。
+      </p>
+      <div class="form-group">
+        <label class="form-label">メールアドレス <span style="color:var(--danger)">*</span></label>
+        <input class="form-input" id="inv-email" type="email" placeholder="xxxx@hongo.ed.jp">
+      </div>
+      <div class="form-group">
+        <label class="form-label">氏名 <span style="color:var(--danger)">*</span></label>
+        <input class="form-input" id="inv-name" type="text" placeholder="例：山田 太郎">
+      </div>
+      <div class="form-group">
+        <label class="form-label">ロール</label>
+        <select class="form-select" id="inv-role">
+          <option value="staff">staff（一般教職員）</option>
+          <option value="admin">admin（管理者）</option>
+        </select>
+      </div>
+      <div id="inv-error" style="color:var(--danger);font-size:12px;min-height:18px;margin-bottom:8px;"></div>
     </div>
-    <div class="form-group">
-      <label class="form-label">氏名 <span style="color:var(--danger)">*</span></label>
-      <input class="form-input" id="inv-name" type="text" placeholder="例：山田 太郎">
-    </div>
-    <div class="form-group">
-      <label class="form-label">ロール</label>
-      <select class="form-select" id="inv-role">
-        <option value="staff">staff（一般教職員）</option>
-        <option value="admin">admin（管理者）</option>
-      </select>
-    </div>
-    <div id="inv-error" style="color:var(--danger);font-size:12px;min-height:18px;margin-bottom:8px;"></div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modal-invite')">キャンセル</button>
       <button class="btn btn-primary" id="inv-submit-btn" onclick="submitInvite()">招待メールを送信</button>
@@ -604,22 +611,24 @@ tr:hover td{background:var(--cobalt-ghost);}
 <div class="modal-overlay" id="modal-user" style="display:none">
   <div class="modal">
     <div class="modal-title">👤 ユーザー情報を編集</div>
-    <input type="hidden" id="um-id">
-    <div class="form-group">
-      <label class="form-label">メールアドレス</label>
-      <input class="form-input" id="um-email" type="text" disabled style="background:var(--gray-50);color:var(--gray-400)">
-      <div class="form-hint">メールアドレスはSupabase Authダッシュボードで変更してください</div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">氏名 <span style="color:var(--danger)">*</span></label>
-      <input class="form-input" id="um-name" type="text">
-    </div>
-    <div class="form-group">
-      <label class="form-label">ロール</label>
-      <select class="form-select" id="um-role">
-        <option value="staff">staff（一般教職員）</option>
-        <option value="admin">admin（管理者）</option>
-      </select>
+    <div class="modal-body">
+      <input type="hidden" id="um-id">
+      <div class="form-group">
+        <label class="form-label">メールアドレス</label>
+        <input class="form-input" id="um-email" type="text" disabled style="background:var(--gray-50);color:var(--gray-400)">
+        <div class="form-hint">メールアドレスはSupabase Authダッシュボードで変更してください</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">氏名 <span style="color:var(--danger)">*</span></label>
+        <input class="form-input" id="um-name" type="text">
+      </div>
+      <div class="form-group">
+        <label class="form-label">ロール</label>
+        <select class="form-select" id="um-role">
+          <option value="staff">staff（一般教職員）</option>
+          <option value="admin">admin（管理者）</option>
+        </select>
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modal-user')">キャンセル</button>
@@ -632,19 +641,29 @@ tr:hover td{background:var(--cobalt-ghost);}
 <div class="modal-overlay" id="modal-category" style="display:none">
   <div class="modal">
     <div class="modal-title" id="category-modal-title">🗂️ カテゴリを追加</div>
-    <input type="hidden" id="cm-id">
-    <input type="hidden" id="cm-type"> <!-- parent / child -->
-    <div class="form-group" id="cm-parent-group" style="display:none">
-      <label class="form-label">大分類（親カテゴリ）</label>
-      <select class="form-select" id="cm-parent-id"></select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">カテゴリ名 <span style="color:var(--danger)">*</span></label>
-      <input class="form-input" id="cm-name" type="text" placeholder="例：電子デバイス">
-    </div>
-    <div class="form-group" id="cm-icon-group">
-      <label class="form-label">アイコン（大分類のみ・絵文字1文字）</label>
-      <input class="form-input" id="cm-icon" type="text" placeholder="例：💻" maxlength="4" style="font-size:20px;width:80px;">
+    <div class="modal-body">
+      <input type="hidden" id="cm-id">
+      <input type="hidden" id="cm-type">
+      <div class="form-group" id="cm-parent-group" style="display:none">
+        <label class="form-label">大分類（親カテゴリ）</label>
+        <select class="form-select" id="cm-parent-id"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">カテゴリ名 <span style="color:var(--danger)">*</span></label>
+        <input class="form-input" id="cm-name" type="text" placeholder="例：電子デバイス">
+      </div>
+      <div class="form-group" id="cm-icon-group">
+        <label class="form-label">アイコン（大分類のみ）</label>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <div id="cm-icon-preview" style="width:44px;height:44px;border:2px solid var(--cobalt-pale);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:24px;background:#fff;">📦</div>
+          <input class="form-input" id="cm-icon" type="text" placeholder="絵文字を入力 例：💻" maxlength="4" style="font-size:18px;width:160px;" oninput="updateIconPreview()">
+        </div>
+        <div style="font-size:11px;color:var(--gray-400);margin-bottom:8px;">▼ よく使うアイコンから選ぶ（クリックで選択）</div>
+        <div style="margin-bottom:8px;">
+          <input type="text" id="icon-search" class="form-input" placeholder="🔍 キーワードで絞り込み（例：カメラ、音楽）" style="font-size:12px;" oninput="filterIcons()">
+        </div>
+        <div id="icon-picker" style="display:flex;flex-wrap:wrap;gap:4px;max-height:160px;overflow-y:auto;padding:4px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50);"></div>
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modal-category')">キャンセル</button>
@@ -657,9 +676,11 @@ tr:hover td{background:var(--cobalt-ghost);}
 <div class="modal-overlay" id="modal-category-delete" style="display:none">
   <div class="modal">
     <div class="modal-title">🗑️ カテゴリを削除</div>
-    <div style="background:var(--danger-light);border:1.5px solid rgba(192,57,43,.25);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:12px;">
-      <div style="font-size:13px;font-weight:700;color:var(--danger);margin-bottom:4px;">⚠️ 注意</div>
-      <div style="font-size:12px;color:var(--gray-600);line-height:1.7;" id="category-delete-msg"></div>
+    <div class="modal-body">
+      <div style="background:var(--danger-light);border:1.5px solid rgba(192,57,43,.25);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:700;color:var(--danger);margin-bottom:4px;">⚠️ 注意</div>
+        <div style="font-size:12px;color:var(--gray-600);line-height:1.7;" id="category-delete-msg"></div>
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modal-category-delete')">キャンセル</button>
@@ -672,10 +693,12 @@ tr:hover td{background:var(--cobalt-ghost);}
 <div class="modal-overlay" id="modal-dept" style="display:none">
   <div class="modal">
     <div class="modal-title" id="dept-modal-title">🏢 部署を追加</div>
-    <input type="hidden" id="dm-id">
-    <div class="form-group">
-      <label class="form-label">部署名 <span style="color:var(--danger)">*</span></label>
-      <input class="form-input" id="dm-name" type="text" placeholder="例：企画管理部">
+    <div class="modal-body">
+      <input type="hidden" id="dm-id">
+      <div class="form-group">
+        <label class="form-label">部署名 <span style="color:var(--danger)">*</span></label>
+        <input class="form-input" id="dm-name" type="text" placeholder="例：企画管理部">
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modal-dept')">キャンセル</button>
@@ -688,8 +711,10 @@ tr:hover td{background:var(--cobalt-ghost);}
 <div class="modal-overlay" id="modal-comment" style="display:none">
   <div class="modal">
     <div class="modal-title">💬 返却コメント詳細</div>
-    <input type="hidden" id="comment-loan-id">
-    <div style="background:var(--gray-50);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:16px;" id="comment-detail-body"></div>
+    <div class="modal-body">
+      <input type="hidden" id="comment-loan-id">
+      <div style="background:var(--gray-50);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:16px;" id="comment-detail-body"></div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modal-comment')">閉じる</button>
       <button class="btn btn-primary" onclick="resolveComment()">✅ 対応済みにする</button>
@@ -701,11 +726,13 @@ tr:hover td{background:var(--cobalt-ghost);}
 <div class="modal-overlay" id="modal-discard" style="display:none">
   <div class="modal">
     <div class="modal-title">🗑️ 備品を廃棄する</div>
-    <div style="background:var(--danger-light);border:1.5px solid rgba(192,57,43,.25);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:12px;">
-      <div style="font-size:13px;font-weight:700;color:var(--danger);margin-bottom:6px;">⚠️ この操作は元に戻せません</div>
-      <div style="font-size:12px;color:var(--gray-600);line-height:1.7;">廃棄するとステータスが「廃棄済み」になり、<br>以降この備品は貸出できなくなります。</div>
+    <div class="modal-body">
+      <div style="background:var(--danger-light);border:1.5px solid rgba(192,57,43,.25);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:700;color:var(--danger);margin-bottom:6px;">⚠️ この操作は元に戻せません</div>
+        <div style="font-size:12px;color:var(--gray-600);line-height:1.7;">廃棄するとステータスが「廃棄済み」になり、<br>以降この備品は貸出できなくなります。</div>
+      </div>
+      <div style="background:var(--gray-50);border-radius:var(--radius-sm);padding:12px 16px;font-size:13px;" id="discard-detail"></div>
     </div>
-    <div style="background:var(--gray-50);border-radius:var(--radius-sm);padding:12px 16px;font-size:13px;" id="discard-detail"></div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modal-discard')">キャンセル</button>
       <button class="btn" style="background:var(--danger);color:#fff;" onclick="confirmDiscard()">廃棄する</button>
@@ -2241,6 +2268,103 @@ function renderCategoryTree() {
   });
 }
 
+
+// ── アイコンピッカー ────────────────────────────
+var ICON_LIST = [
+  // デバイス・機器
+  {e:'💻',k:'パソコン ノートパソコン laptop PC'},{e:'🖥️',k:'デスクトップ モニター desktop'},{e:'📱',k:'スマートフォン スマホ mobile phone'},
+  {e:'📷',k:'カメラ camera 写真'},{e:'📹',k:'ビデオカメラ video camera 動画'},{e:'🎥',k:'映画カメラ film camera'},{e:'📽️',k:'プロジェクター projector 映写'},
+  {e:'📺',k:'テレビ TV 液晶'},{e:'📻',k:'ラジオ radio'},{e:'🖨️',k:'プリンター printer 印刷'},
+  {e:'⌨️',k:'キーボード keyboard'},{e:'🖱️',k:'マウス mouse'},{e:'💾',k:'フロッピー disk storage'},
+  {e:'🔋',k:'バッテリー 電池 battery'},{e:'🔌',k:'コンセント 電源 plug cable'},
+  {e:'📡',k:'アンテナ antenna wifi 通信'},{e:'☎️',k:'電話 phone'},{e:'📞',k:'受話器 telephone'},
+  // 音響・映像
+  {e:'🎤',k:'マイク microphone 音響'},{e:'🎧',k:'ヘッドフォン headphone 音楽'},{e:'🔊',k:'スピーカー speaker 音'},
+  {e:'🎚️',k:'ミキサー mixer 音響'},{e:'🎛️',k:'コントロール panel 機器'},
+  // スポーツ・体育
+  {e:'⚽',k:'サッカー soccer football'},{e:'🏀',k:'バスケット basketball'},{e:'🏈',k:'アメフト football'},
+  {e:'⚾',k:'野球 baseball'},{e:'🎾',k:'テニス tennis'},{e:'🏐',k:'バレー volleyball'},
+  {e:'🏓',k:'卓球 ping pong table tennis'},{e:'🏸',k:'バドミントン badminton'},{e:'🥊',k:'ボクシング boxing'},
+  {e:'🎽',k:'ユニフォーム uniform 体育'},{e:'🏊',k:'水泳 swimming プール'},
+  // 理科・実験
+  {e:'🔬',k:'顕微鏡 microscope 理科 実験'},{e:'🔭',k:'望遠鏡 telescope 天体'},
+  {e:'⚗️',k:'フラスコ flask 化学 実験'},{e:'🧪',k:'試験管 test tube 実験'},
+  {e:'🧬',k:'DNA 生物 biology'},{e:'⚖️',k:'はかり 天秤 scale balance'},
+  {e:'🌡️',k:'温度計 thermometer 気温'},
+  // 美術・工作
+  {e:'🎨',k:'パレット palette 美術 絵'},{e:'✏️',k:'鉛筆 pencil'},{e:'🖊️',k:'ペン pen'},
+  {e:'📐',k:'三角定規 ruler 製図'},{e:'📏',k:'定規 ruler 測定'},{e:'✂️',k:'はさみ scissors'},
+  {e:'🖌️',k:'筆 brush 絵 美術'},{e:'🎭',k:'演劇 theater drama'},
+  // 事務・文具
+  {e:'📋',k:'クリップボード clipboard 書類 事務'},{e:'📁',k:'フォルダ folder ファイル'},
+  {e:'📂',k:'フォルダ open folder'},{e:'📄',k:'書類 document paper'},
+  {e:'📝',k:'メモ note 記録'},{e:'📌',k:'ピン pin 押しピン'},{e:'📎',k:'クリップ paperclip'},
+  {e:'🗂️',k:'カードファイル index'},{e:'📦',k:'箱 box 荷物 段ボール'},
+  {e:'🗃️',k:'カードボックス card box'},{e:'🗄️',k:'キャビネット cabinet 収納'},
+  // 清掃・用務
+  {e:'🧹',k:'ほうき 箒 掃除 清掃 broom'},{e:'🧺',k:'かご basket 洗濯'},
+  {e:'🪣',k:'バケツ bucket'},{e:'🧴',k:'洗剤 soap bottle'},{e:'🧻',k:'ペーパー paper roll'},
+  {e:'🪤',k:'罠 trap'},{e:'🔧',k:'スパナ wrench 修理'},{e:'🔨',k:'ハンマー hammer'},
+  {e:'🪛',k:'ドライバー screwdriver'},{e:'🗑️',k:'ゴミ箱 trash bin'},
+  // 医療・保健
+  {e:'🏥',k:'病院 hospital 医療'},{e:'💊',k:'薬 medicine pill'},{e:'🩺',k:'聴診器 stethoscope'},
+  {e:'🩹',k:'絆創膏 bandaid'},{e:'🧯',k:'消火器 fire extinguisher'},
+  // 自然・屋外
+  {e:'🌿',k:'植物 plant 自然'},{e:'🌱',k:'芽 seedling 植物'},{e:'🌳',k:'木 tree'},
+  // 乗り物・移動
+  {e:'🚗',k:'車 car 自動車'},{e:'🚌',k:'バス bus'},{e:'🚲',k:'自転車 bicycle bike'},
+  {e:'🛒',k:'カート cart ショッピング'},
+  // その他
+  {e:'🏆',k:'トロフィー trophy 賞'},{e:'🎖️',k:'メダル medal 賞'},{e:'🔑',k:'鍵 key'},
+  {e:'🪑',k:'椅子 chair 家具'},{e:'🛋️',k:'ソファ sofa 家具'},{e:'🪞',k:'鏡 mirror'},
+  {e:'💡',k:'電球 light 照明 アイデア'},{e:'🔦',k:'懐中電灯 flashlight'},
+  {e:'🕯️',k:'ろうそく candle'},{e:'🧲',k:'磁石 magnet'},{e:'⏱️',k:'ストップウォッチ stopwatch'},
+  {e:'⏰',k:'目覚まし時計 alarm clock'},{e:'🧭',k:'コンパス compass 方位'},
+];
+
+function initIconPicker() {
+  renderIconPicker(ICON_LIST);
+}
+
+function renderIconPicker(list) {
+  var picker = document.getElementById('icon-picker');
+  if (!picker) return;
+  picker.innerHTML = '';
+  list.forEach(function(item) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.title = item.k;
+    btn.textContent = item.e;
+    btn.style.cssText = 'width:36px;height:36px;font-size:20px;border:1.5px solid var(--gray-200);border-radius:6px;background:#fff;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;';
+    btn.addEventListener('mouseenter', function() { btn.style.background='var(--cobalt-pale)'; btn.style.borderColor='var(--cobalt-light)'; });
+    btn.addEventListener('mouseleave', function() { btn.style.background='#fff'; btn.style.borderColor='var(--gray-200)'; });
+    btn.addEventListener('click', function() {
+      document.getElementById('cm-icon').value = item.e;
+      updateIconPreview();
+      // 選択ハイライト
+      picker.querySelectorAll('button').forEach(function(b) { b.style.background='#fff'; b.style.borderColor='var(--gray-200)'; });
+      btn.style.background = 'var(--cobalt-pale)';
+      btn.style.borderColor = 'var(--cobalt)';
+    });
+    picker.appendChild(btn);
+  });
+}
+
+function filterIcons() {
+  var q = (document.getElementById('icon-search').value || '').trim().toLowerCase();
+  if (!q) { renderIconPicker(ICON_LIST); return; }
+  var filtered = ICON_LIST.filter(function(item) {
+    return item.k.toLowerCase().includes(q) || item.e.includes(q);
+  });
+  renderIconPicker(filtered);
+}
+
+function updateIconPreview() {
+  var val = document.getElementById('cm-icon').value;
+  var preview = document.getElementById('cm-icon-preview');
+  if (preview) preview.textContent = val || '📦';
+}
+
 // ── カテゴリ追加・編集モーダル ─────────────────
 function showCategoryModal(type, category, parentId) {
   var idEl     = document.getElementById('cm-id');
@@ -2278,6 +2402,11 @@ function showCategoryModal(type, category, parentId) {
     // 大分類：アイコン表示
     if (iconGroup) iconGroup.style.display = '';
     if (iconEl)   iconEl.value = category ? (category.icon || '') : '';
+    updateIconPreview();
+    initIconPicker();
+    // 検索ボックスをリセット
+    var srch = document.getElementById('icon-search');
+    if (srch) srch.value = '';
     parentGroup.style.display = 'none';
     titleEl.textContent = category ? '🗂️ 大分類を編集' : '🗂️ 大分類を追加';
   }
