@@ -1412,9 +1412,9 @@ function loginSuccess(user) {
     .catch(function() { loadMyLoans(user.email); }); // 取得失敗時も貸出表示は試みる
 
   // ── 初回ログイン判定 ──────────────────────
-  var localKey = 'hongo_tutorial_done_' + user.id;
-  var localDone = localStorage.getItem(localKey) === '1';
-  if (user.isFirstLogin && !localDone) {
+  // is_first_loginはDB（profiles）のフラグのみで制御。
+  // localStorageはシークレットモード・別端末で消えるため使用しない。
+  if (user.isFirstLogin) {
     // まずパスワード変更を強制、完了後にチュートリアルを表示
     setTimeout(function() { showForcedPasswordChange(); }, 600);
   }
