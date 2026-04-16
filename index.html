@@ -385,7 +385,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
       <div class="hero-stats">
         <div class="hero-stat"><div class="num" id="stat-loan-num">—</div><div class="label">貸出中</div></div>
         <div class="hero-stat warn" id="stat-duesoon-wrap"><div class="num" id="stat-duesoon-num">—</div><div class="label">期限間近</div></div>
-        <div class="hero-stat alert" id="stat-overdue-wrap" style="display:none"><div class="num">0</div><div class="label">期限超過</div></div>
+        <div class="hero-stat alert" id="stat-overdue-wrap" style="display:none"><div class="num" id="stat-overdue-num">0</div><div class="label">期限超過</div></div>
         <div class="hero-stat"><div class="num">0</div><div class="label">予約中</div></div>
       </div>
       <div class="hero-hint">タップして詳細を確認 ›</div>
@@ -629,6 +629,17 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
     <!-- 過去の貸出履歴（動的レンダリング） -->
     <div style="margin-top:8px">
       <div class="section-title">過去の貸出履歴</div>
+      <div id="history-limit-selector" style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;color:var(--gray-600);cursor:pointer;">
+          <input type="radio" name="history-limit" value="10" checked onchange="onHistoryLimitChange(this)"> 10件
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;color:var(--gray-600);cursor:pointer;">
+          <input type="radio" name="history-limit" value="50" onchange="onHistoryLimitChange(this)"> 50件
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;color:var(--gray-600);cursor:pointer;">
+          <input type="radio" name="history-limit" value="all" onchange="onHistoryLimitChange(this)"> 全件
+        </label>
+      </div>
       <div id="mypage-history-list"><div style="text-align:center;color:var(--gray-400);padding:20px;font-size:13px;">読み込み中…</div></div>
     </div>
   </div>
@@ -1394,10 +1405,11 @@ function loginSuccess(user) {
   if (heroEl) heroEl.textContent = user.name;
   document.querySelectorAll('#confirm-user-email, #mypage-user-email').forEach(function(el) { el.textContent = user.email; });
   updateMypageRoleBadge();
-  loadResources();
-  loadCategories();
   loadDepartments();
-  loadMyLoans(user.email);
+  // ② allResources・allCategoriesが揃ってからloadMyLoansを実行（アイコン・備品名の表示崩れ防止）
+  Promise.all([loadResources(), loadCategories()])
+    .then(function() { loadMyLoans(user.email); })
+    .catch(function() { loadMyLoans(user.email); }); // 取得失敗時も貸出表示は試みる
 
   // ── チュートリアル判定 ──────────────────────
   // is_first_login が true (初回) または localStorageにフラグがない場合に表示
@@ -1514,7 +1526,7 @@ function loadDepartments() {
 }
 
 function loadCategories() {
-  sbFetch('categories?order=category_id&select=category_id,name,level,parent_id,icon')
+  return sbFetch('categories?order=category_id&select=category_id,name,level,parent_id,icon')
     .then(function(data) {
       allCategories = data || [];
       // resourcesが読み込み済みなら即描画、未読み込みならresources完了後に描画
@@ -1525,7 +1537,7 @@ function loadCategories() {
 
 function loadResources() {
   // ⑩ description/how_to/external_url、⑭ カテゴリiconもSELECT
-  sbFetch('resources?order=resource_id&select=resource_id,name,number,status,category_id,location,department_id,description,how_to,external_url')
+  return sbFetch('resources?order=resource_id&select=resource_id,name,number,status,category_id,location,department_id,description,how_to,external_url')
     .then(function(data) {
       allResources = data || [];
       if (allCategories.length > 0) renderCategoryGrid();
@@ -1626,11 +1638,21 @@ function renderMypageCurrentLoans() {
 }
 
 // ── マイページ：過去の貸出履歴（動的） ───────────
-function loadMypageHistory(email) {
+function onHistoryLimitChange(radio) {
+  if (currentUser) loadMypageHistory(currentUser.email, radio.value);
+}
+
+function loadMypageHistory(email, limit) {
+  // limitが未指定の場合はラジオボタンの現在値を使う（既存呼び出し互換）
+  if (limit === undefined) {
+    var checked = document.querySelector('input[name="history-limit"]:checked');
+    limit = checked ? checked.value : '10';
+  }
   var container = document.getElementById('mypage-history-list');
   if (!container) return;
   container.innerHTML = '<div style="text-align:center;color:var(--gray-400);padding:20px;font-size:13px;">読み込み中…</div>';
-  sbFetch('loans?user_email=eq.' + encodeURIComponent(email) + '&status=eq.returned&order=returned_at.desc&limit=20')
+  var limitParam = (limit === 'all') ? '' : '&limit=' + limit;
+  sbFetch('loans?user_email=eq.' + encodeURIComponent(email) + '&status=eq.returned&order=returned_at.desc' + limitParam)
     .then(function(data) {
       container.innerHTML = '';
       if (!data || data.length === 0) {
@@ -1962,6 +1984,8 @@ function updateHomeStats() {
   }).length;
   S.hasOverdue = overdue > 0;
   S.hasDueSoon = dueSoon > 0;
+  var overdueNumEl = document.getElementById('stat-overdue-num');
+  if (overdueNumEl) overdueNumEl.textContent = overdue;
   var dueSoonNumEl = document.getElementById('stat-duesoon-num');
   if (dueSoonNumEl) dueSoonNumEl.textContent = dueSoon;
   updateOverdueUI();
