@@ -1467,16 +1467,17 @@ function submitForcedPasswordChange() {
 
   btn.textContent = '変更中...'; btn.disabled = true;
 
+  var userId = currentUser.id; // パスワード変更前にIDを保存
   getSB().auth.updateUser({ password: pw1 }).then(function(res) {
     if (res.error) throw res.error;
     // is_first_login を false に更新
-    return sbPatch('profiles?id=eq.' + encodeURIComponent(currentUser.id), { is_first_login: false });
+    return sbPatch('profiles?id=eq.' + encodeURIComponent(userId), { is_first_login: false });
   }).then(function() {
     var overlay = document.getElementById('forced-pw-overlay');
     if (overlay) overlay.remove();
     showToast('✅ パスワードを変更しました', 'success');
     // チュートリアルを表示
-    var localKey = 'hongo_tutorial_done_' + currentUser.id;
+    var localKey = 'hongo_tutorial_done_' + userId;
     var localDone = localStorage.getItem(localKey) === '1';
     if (!localDone) {
       setTimeout(function() { showTutorial(false); }, 400);
