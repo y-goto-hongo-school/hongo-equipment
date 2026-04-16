@@ -774,6 +774,17 @@ function showScreen(name){
   if(name==='return-select'){
     renderReturnScreen();
   }
+  if(name==='extend-confirm'){
+    // 現在の返却期限をloansキャッシュから取得して表示
+    if(S.currentLoanId){
+      var loan=myLoans.filter(function(l){return l.loan_id===S.currentLoanId;})[0];
+      if(loan && loan.due_date){
+        var d=new Date(loan.due_date); d.setHours(0,0,0,0);
+        var el=document.getElementById('extend-current-due');
+        if(el) el.textContent=fmtD(d.getFullYear(),d.getMonth(),d.getDate())+'（'+DOW[d.getDay()]+'）';
+      }
+    }
+  }
   if(name==='borrow-confirm'){
     // ② 前回の日付が今日以前なら初期化、今日以降なら保持
     var today=new Date();today.setHours(0,0,0,0);
@@ -843,8 +854,9 @@ function setDetailContent(name,icon,badge,asset){
 }
 
 // 読み取り専用（ホーム・マイページ現在貸出から）：借りるボタンなし、延長ボタンあり
-function goToDetailReadOnly(name,icon,badge,asset){
+function goToDetailReadOnly(name,icon,badge,asset,loanId){
   S.fromBorrow=false; S.fromHistory=false;
+  S.currentLoanId = loanId || null; // 期限延長に使用
   setDetailContent(name,icon,badge,asset);
   document.getElementById('borrow-top-btn').style.display='none';
   document.getElementById('extend-top-btn').style.display='block'; // 予約なしを想定
@@ -999,10 +1011,31 @@ function completeExtend(){
   let msg;
   if(diff===1)msg='明日が新しい返却期限です。当日朝にリマインドメールをお送りします。';
   else msg='新しい返却期限の前日にリマインドメールをお送りします。';
-  document.getElementById('ex-success-name').textContent=S.currentItemName;
-  document.getElementById('ex-success-due').textContent=fmtD(due.getFullYear(),due.getMonth(),due.getDate())+`（${DOW[due.getDay()]}）`;
-  document.getElementById('extend-success-text').textContent=msg;
-  showScreen('extend-success');setNav('home');
+
+  if(!S.currentLoanId){
+    alert('貸出情報が取得できませんでした。一度ホームに戻ってから再度お試しください。');
+    return;
+  }
+
+  var btn=document.getElementById('extend-submit-btn');
+  btn.textContent='処理中...'; btn.disabled=true;
+
+  var dueDateStr=fmtD(due.getFullYear(),due.getMonth(),due.getDate());
+  sbPatch('loans?loan_id=eq.'+encodeURIComponent(S.currentLoanId), {due_date:dueDateStr})
+    .then(function(){
+      // キャッシュも更新
+      myLoans.forEach(function(l){ if(l.loan_id===S.currentLoanId) l.due_date=dueDateStr; });
+      document.getElementById('ex-success-name').textContent=S.currentItemName;
+      document.getElementById('ex-success-due').textContent=fmtD(due.getFullYear(),due.getMonth(),due.getDate())+`（${DOW[due.getDay()]}）`;
+      document.getElementById('extend-success-text').textContent=msg;
+      btn.textContent='🔄 延長を確定する'; btn.disabled=false;
+      showScreen('extend-success');setNav('home');
+    })
+    .catch(function(err){
+      console.error('延長エラー:',err);
+      alert('期限延長に失敗しました。再度お試しください。\n'+err.message);
+      btn.textContent='🔄 延長を確定する'; btn.disabled=false;
+    });
 }
 
 function toggleReturnSelect(card){
@@ -1412,9 +1445,9 @@ function loginSuccess(user) {
     .catch(function() { loadMyLoans(user.email); }); // 取得失敗時も貸出表示は試みる
 
   // ── 初回ログイン判定 ──────────────────────
-  // is_first_loginはDB（profiles）のフラグのみで制御。
-  // localStorageはシークレットモード・別端末で消えるため使用しない。
-  if (user.isFirstLogin) {
+  var localKey = 'hongo_tutorial_done_' + user.id;
+  var localDone = localStorage.getItem(localKey) === '1';
+  if (user.isFirstLogin && !localDone) {
     // まずパスワード変更を強制、完了後にチュートリアルを表示
     setTimeout(function() { showForcedPasswordChange(); }, 600);
   }
@@ -1681,7 +1714,7 @@ function renderMypageCurrentLoans() {
     card.appendChild(iconDiv); card.appendChild(infoDiv); card.appendChild(statusDiv);
     var loanId = loan.loan_id; var resourceId = loan.resource_id;
     card.addEventListener('click', function() {
-      goToDetailReadOnly((res.name||'') + (res.number ? ' ' + res.number : ''), getResourceIcon(res), res.name||'', resourceId);
+      goToDetailReadOnly((res.name||'') + (res.number ? ' ' + res.number : ''), getResourceIcon(res), res.name||'', resourceId, loanId);
     });
     retBtn.addEventListener('click', function(e) {
       e.stopPropagation();
@@ -2016,7 +2049,7 @@ function renderHomeLoans() {
     card.appendChild(loanInfoDiv);
     card.appendChild(loanStatusDiv);
     card.addEventListener('click', function() {
-      goToDetailReadOnly((res.name||'') + ' ' + (res.number||''), getResourceIcon(res), res.name||'', resourceId);
+      goToDetailReadOnly((res.name||'') + ' ' + (res.number||''), getResourceIcon(res), res.name||'', resourceId, loanId);
     });
     returnBtn.addEventListener('click', function(e) {
       e.stopPropagation();
