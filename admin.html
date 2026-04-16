@@ -2030,9 +2030,8 @@ function renderUsers(data) {
     var tdEmail = document.createElement('td');
     tdEmail.style.color = 'var(--gray-600)';
     tdEmail.style.fontSize = '12px';
-    // ⚠️ emailはprofilesテーブルにない→UIDのみ表示
-    tdEmail.textContent = user.id ? user.id.slice(0, 8) + '…' : '—';
-    tdEmail.title = user.id || '';
+    tdEmail.textContent = user.email || '—';
+    tdEmail.title = user.email || '';
 
     var tdRole = document.createElement('td');
     var badge = document.createElement('span');
@@ -2133,7 +2132,7 @@ function submitInvite() {
     var userId = res.data && res.data.user && res.data.user.id;
     if (!userId) throw new Error('ユーザーIDが取得できませんでした');
     // profilesテーブルにも登録
-    return sbInsert('profiles', { id: userId, name: name, role: role, is_first_login: true });
+    return sbInsert('profiles', { id: userId, name: name, role: role, is_first_login: true, email: email });
   }).then(function() {
     closeModal('modal-invite');
     showToast('✅ 招待メールを送信しました（' + email + '）', 'success');
