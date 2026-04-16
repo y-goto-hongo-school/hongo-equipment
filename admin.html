@@ -1986,7 +1986,7 @@ function loadUsers() {
   //    管理者がこれを実行する場合は、Supabase側に
   //    「管理者は全件SELECT可」ポリシーが必要。
   //    引き継ぎ文書の「管理者は全操作」ポリシーを profiles にも適用すること。
-  sbFetch('profiles?order=name.asc&select=id,name,role,is_first_login,created_at')
+  sbFetch('profiles?order=name.asc&select=id,name,email,role,is_first_login,created_at')
     .then(function(data) {
       allUsers = data || [];
       var count = document.getElementById('users-count');
