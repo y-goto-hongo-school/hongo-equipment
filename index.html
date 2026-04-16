@@ -1411,16 +1411,81 @@ function loginSuccess(user) {
     .then(function() { loadMyLoans(user.email); })
     .catch(function() { loadMyLoans(user.email); }); // 取得失敗時も貸出表示は試みる
 
-  // ── チュートリアル判定 ──────────────────────
-  // is_first_login が true (初回) または localStorageにフラグがない場合に表示
+  // ── 初回ログイン判定 ──────────────────────
   var localKey = 'hongo_tutorial_done_' + user.id;
   var localDone = localStorage.getItem(localKey) === '1';
   if (user.isFirstLogin && !localDone) {
-    setTimeout(function() { showTutorial(false); }, 600);
-    // Supabase側の is_first_login を false に更新
-    sbPatch('profiles?id=eq.' + encodeURIComponent(user.id), { is_first_login: false })
-      .catch(function(e) { console.warn('is_first_login更新失敗:', e); });
+    // まずパスワード変更を強制、完了後にチュートリアルを表示
+    setTimeout(function() { showForcedPasswordChange(); }, 600);
   }
+}
+
+// ── 初回強制パスワード変更 ────────────────────────────
+function showForcedPasswordChange() {
+  var overlay = document.createElement('div');
+  overlay.id = 'forced-pw-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,45,92,.88);z-index:600;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px);animation:fadeIn .35s ease;';
+
+  var modal = document.createElement('div');
+  modal.style.cssText = 'background:#fff;border-radius:20px;width:100%;max-width:380px;overflow:hidden;box-shadow:0 16px 60px rgba(0,0,0,.35);';
+
+  modal.innerHTML = [
+    '<div style="background:linear-gradient(135deg,var(--cobalt-dark),var(--cobalt-mid));padding:28px 24px 22px;color:#fff;text-align:center;">',
+    '  <div style="font-size:36px;margin-bottom:10px;">🔑</div>',
+    '  <div style="font-family:\'Noto Serif JP\',serif;font-size:18px;font-weight:700;margin-bottom:4px;">パスワードを変更してください</div>',
+    '  <div style="font-size:12px;opacity:.75;">初回ログインのため、新しいパスワードを設定してください</div>',
+    '</div>',
+    '<div style="padding:24px;">',
+    '  <div style="font-size:12px;color:var(--gray-600);margin-bottom:16px;line-height:1.7;">仮パスワードから新しいパスワードに変更します。8文字以上で設定してください。</div>',
+    '  <div style="margin-bottom:12px;">',
+    '    <div style="font-size:12px;color:var(--gray-600);margin-bottom:6px;">新しいパスワード</div>',
+    '    <input id="forced-pw-new" type="password" placeholder="8文字以上" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;">',
+    '  </div>',
+    '  <div style="margin-bottom:16px;">',
+    '    <div style="font-size:12px;color:var(--gray-600);margin-bottom:6px;">新しいパスワード（確認）</div>',
+    '    <input id="forced-pw-confirm" type="password" placeholder="もう一度入力" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;">',
+    '  </div>',
+    '  <div id="forced-pw-error" style="color:var(--danger);font-size:12px;min-height:18px;margin-bottom:12px;"></div>',
+    '  <button id="forced-pw-btn" onclick="submitForcedPasswordChange()" style="width:100%;padding:13px;background:linear-gradient(135deg,var(--cobalt),var(--cobalt-mid));color:#fff;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">パスワードを変更して開始</button>',
+    '</div>'
+  ].join('');
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+}
+
+function submitForcedPasswordChange() {
+  var pw1   = document.getElementById('forced-pw-new').value;
+  var pw2   = document.getElementById('forced-pw-confirm').value;
+  var errEl = document.getElementById('forced-pw-error');
+  var btn   = document.getElementById('forced-pw-btn');
+
+  errEl.textContent = '';
+  if (!pw1) { errEl.textContent = '新しいパスワードを入力してください'; return; }
+  if (pw1.length < 8) { errEl.textContent = '8文字以上で入力してください'; return; }
+  if (pw1 !== pw2) { errEl.textContent = 'パスワードが一致しません'; return; }
+
+  btn.textContent = '変更中...'; btn.disabled = true;
+
+  getSB().auth.updateUser({ password: pw1 }).then(function(res) {
+    if (res.error) throw res.error;
+    // is_first_login を false に更新
+    return sbPatch('profiles?id=eq.' + encodeURIComponent(currentUser.id), { is_first_login: false });
+  }).then(function() {
+    var overlay = document.getElementById('forced-pw-overlay');
+    if (overlay) overlay.remove();
+    showToast('✅ パスワードを変更しました', 'success');
+    // チュートリアルを表示
+    var localKey = 'hongo_tutorial_done_' + currentUser.id;
+    var localDone = localStorage.getItem(localKey) === '1';
+    if (!localDone) {
+      setTimeout(function() { showTutorial(false); }, 400);
+    }
+  }).catch(function(err) {
+    console.error('PW変更エラー:', err);
+    errEl.textContent = 'エラー: ' + (err.message || 'パスワード変更に失敗しました');
+    btn.textContent = 'パスワードを変更して開始'; btn.disabled = false;
+  });
 }
 
 // ── パスワード変更 ────────────────────────────
