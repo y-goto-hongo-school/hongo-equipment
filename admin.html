@@ -1926,9 +1926,22 @@ function submitResource() {
 
   var catId = document.getElementById('rm-category').value || null;
 
+  var inputNumber = document.getElementById('rm-number').value.trim() || null;
+
+  // 管理番号の重複チェック（新規追加時のみ）
+  if (!editingResourceId && inputNumber) {
+    var duplicate = allResources.filter(function(r) {
+      return r.number && r.number === inputNumber;
+    })[0];
+    if (duplicate) {
+      showToast('⚠️ 管理番号「' + inputNumber + '」は既に登録されています（' + duplicate.name + '）', 'error');
+      return;
+    }
+  }
+
   var body = {
     name: name,
-    number: document.getElementById('rm-number').value.trim() || null,
+    number: inputNumber,
     status: document.getElementById('rm-status').value,
     category_id: catId,
     location: document.getElementById('rm-location').value.trim() || null,
