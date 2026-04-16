@@ -582,7 +582,7 @@ tr:hover td{background:var(--cobalt-ghost);}
     <div class="modal-title">✉️ 新規ユーザーを招待</div>
     <div class="modal-body">
       <p style="font-size:12px;color:var(--gray-600);line-height:1.7;margin-bottom:16px;">
-        招待メールを送信します。受信者がメール内のリンクをクリックすると、パスワードを設定してログインできます。
+        招待メールを送信します。受信者は仮パスワードでログイン後、パスワードの変更が求められます。
       </p>
       <div class="form-group">
         <label class="form-label">メールアドレス <span style="color:var(--danger)">*</span></label>
@@ -591,6 +591,11 @@ tr:hover td{background:var(--cobalt-ghost);}
       <div class="form-group">
         <label class="form-label">氏名 <span style="color:var(--danger)">*</span></label>
         <input class="form-input" id="inv-name" type="text" placeholder="例：山田 太郎">
+      </div>
+      <div class="form-group">
+        <label class="form-label">仮パスワード <span style="color:var(--danger)">*</span></label>
+        <input class="form-input" id="inv-password" type="text" placeholder="例：Hongo2026" autocomplete="off">
+        <div style="font-size:11px;color:var(--gray-400);margin-top:4px;">8文字以上。本人に別途お伝えください。初回ログイン時に変更が求められます。</div>
       </div>
       <div class="form-group">
         <label class="form-label">ロール</label>
@@ -2098,6 +2103,7 @@ function submitUserEdit() {
 function showInviteModal() {
   document.getElementById('inv-email').value = '';
   document.getElementById('inv-name').value = '';
+  document.getElementById('inv-password').value = '';
   document.getElementById('inv-role').value = 'staff';
   document.getElementById('inv-error').textContent = '';
   var btn = document.getElementById('inv-submit-btn');
@@ -2107,22 +2113,25 @@ function showInviteModal() {
 }
 
 function submitInvite() {
-  var email = document.getElementById('inv-email').value.trim();
-  var name  = document.getElementById('inv-name').value.trim();
-  var role  = document.getElementById('inv-role').value;
-  var errEl = document.getElementById('inv-error');
-  var btn   = document.getElementById('inv-submit-btn');
+  var email    = document.getElementById('inv-email').value.trim();
+  var name     = document.getElementById('inv-name').value.trim();
+  var password = document.getElementById('inv-password').value.trim();
+  var role     = document.getElementById('inv-role').value;
+  var errEl    = document.getElementById('inv-error');
+  var btn      = document.getElementById('inv-submit-btn');
 
   errEl.textContent = '';
-  if (!email) { errEl.textContent = 'メールアドレスを入力してください'; return; }
-  if (!name)  { errEl.textContent = '氏名を入力してください'; return; }
+  if (!email)    { errEl.textContent = 'メールアドレスを入力してください'; return; }
+  if (!name)     { errEl.textContent = '氏名を入力してください'; return; }
+  if (!password) { errEl.textContent = '仮パスワードを入力してください'; return; }
+  if (password.length < 8) { errEl.textContent = '仮パスワードは8文字以上で入力してください'; return; }
 
   btn.textContent = '送信中...'; btn.disabled = true;
 
-  // Supabase signUp で招待（メール確認が有効な場合、確認メールが届く）
+  // signUp で登録（確認メールが届く。is_first_login=true で初回PW変更を強制）
   getSB().auth.signUp({
     email: email,
-    password: _generateTempPassword(), // 仮パスワード（本人はメールから設定）
+    password: password,
     options: {
       data: { name: name },
       emailRedirectTo: 'https://y-goto-hongo-school.github.io/hongo-equipment/'
@@ -2131,7 +2140,6 @@ function submitInvite() {
     if (res.error) throw res.error;
     var userId = res.data && res.data.user && res.data.user.id;
     if (!userId) throw new Error('ユーザーIDが取得できませんでした');
-    // profilesテーブルにも登録
     return sbInsert('profiles', { id: userId, name: name, role: role, is_first_login: true, email: email });
   }).then(function() {
     closeModal('modal-invite');
