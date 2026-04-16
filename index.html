@@ -1475,7 +1475,6 @@ function submitForcedPasswordChange() {
   }).then(function() {
     var overlay = document.getElementById('forced-pw-overlay');
     if (overlay) overlay.remove();
-    showToast('✅ パスワードを変更しました', 'success');
     // チュートリアルを表示
     var localKey = 'hongo_tutorial_done_' + userId;
     var localDone = localStorage.getItem(localKey) === '1';
