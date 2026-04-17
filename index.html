@@ -396,6 +396,10 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
       <div class="ob-icon">⚠️</div>
       <div class="ob-text">返却期限を過ぎた備品があります。返却が完了するまで新規の貸出はできません。</div>
     </div>
+    <div class="overdue-banner" id="loan-limit-banner" style="display:none;background:var(--warning-light);border-color:var(--warning);">
+      <div class="ob-icon">🔒</div>
+      <div class="ob-text" style="color:var(--warning);">同時貸出の上限（100件）に達しています。返却後に新たに借りることができます。</div>
+    </div>
     <div class="home-hero" onclick="jumpToMyLoans()">
       <div class="hero-top">
         <div class="hero-top-left">
@@ -411,7 +415,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
         <div class="hero-stat"><div class="num" id="stat-loan-num">—</div><div class="label">貸出中</div></div>
         <div class="hero-stat warn" id="stat-duesoon-wrap"><div class="num" id="stat-duesoon-num">—</div><div class="label">期限間近</div></div>
         <div class="hero-stat alert" id="stat-overdue-wrap" style="display:none"><div class="num" id="stat-overdue-num">0</div><div class="label">期限超過</div></div>
-        <div class="hero-stat"><div class="num">0</div><div class="label">予約中</div></div>
+        <div class="hero-stat"><div class="num" id="stat-reservation-num">0</div><div class="label">予約中</div></div>
       </div>
       <div class="hero-hint">タップして詳細を確認 ›</div>
     </div>
@@ -464,9 +468,21 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
       <button class="primary-btn" onclick="showScreen('borrow-confirm')">📦 この備品を借りる</button>
     </div>
 
+    <!-- 予約ボタン（借りる画面から来た時のみ表示） -->
+    <div id="reserve-top-btn" style="display:none;margin-bottom:8px;">
+      <button class="secondary-btn" style="margin-top:0;" onclick="goToReserveConfirm()">📋 この備品を予約する</button>
+    </div>
+
     <!-- 延長ボタン（読み取り専用かつ予約なしの時のみ表示） -->
     <div id="extend-top-btn" style="display:none;margin-bottom:14px;">
       <button class="extend-btn" onclick="showScreen('extend-confirm')">🔄 返却期限を変更する</button>
+    </div>
+
+    <!-- 予約あり通知（期限変更不可の旨） -->
+    <div id="reserve-notice-btn" style="display:none;margin-bottom:14px;">
+      <div style="background:var(--warning-light);border:1.5px solid var(--warning);border-radius:var(--radius);padding:12px 16px;font-size:12px;color:var(--warning);font-weight:600;">
+        📋 この備品には予約が入っているため、返却期限の変更はできません。
+      </div>
     </div>
 
     <div class="detail-card">
@@ -505,7 +521,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
   <!-- BORROW CONFIRM -->
   <div id="screen-borrow-confirm" class="screen">
     <button class="back-btn" onclick="showScreen('item-detail')">‹ 詳細へ戻る</button>
-    <div class="page-header"><div class="page-title">貸出確認</div><div class="page-subtitle">返却日をカレンダーから選択してください</div></div>
+    <div class="page-header"><div class="page-title">貸出確認</div><div class="page-subtitle">返却日をカレンダーから選択してください（最大14日後まで）</div></div>
     <div class="confirm-card">
       <div class="confirm-title">貸出情報</div>
       <div class="confirm-row"><span class="confirm-label">備品名</span><span class="confirm-value" id="confirm-item-name">Chromebook No.01</span></div>
@@ -591,6 +607,55 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
     </div>
   </div>
 
+  <!-- RESERVE CONFIRM（予約確認） -->
+  <div id="screen-reserve-confirm" class="screen">
+    <button class="back-btn" onclick="showScreen('item-detail')">‹ 詳細へ戻る</button>
+    <div class="page-header"><div class="page-title">予約する</div><div class="page-subtitle">希望利用開始日をカレンダーから選択してください</div></div>
+    <div class="confirm-card">
+      <div class="confirm-title">予約情報</div>
+      <div class="confirm-row"><span class="confirm-label">備品名</span><span class="confirm-value" id="reserve-item-name">—</span></div>
+      <div class="confirm-row"><span class="confirm-label">現在の状態</span><span class="confirm-value" id="reserve-item-status">—</span></div>
+      <div class="confirm-row"><span class="confirm-label">予約者</span><span class="confirm-value" id="reserve-user-name">—</span></div>
+      <div class="confirm-row" style="flex-direction:column;align-items:flex-start;gap:10px;">
+        <span class="confirm-label">希望利用開始日</span>
+        <div class="calendar-wrap" style="width:100%">
+          <div class="cal-header">
+            <button class="cal-nav" onclick="changeCalMonthRsv(-1)">‹</button>
+            <span class="cal-month" id="cal-rsv-month-label"></span>
+            <button class="cal-nav" onclick="changeCalMonthRsv(1)">›</button>
+          </div>
+          <div class="cal-grid">
+            <div class="cal-day-name sun">日</div><div class="cal-day-name">月</div><div class="cal-day-name">火</div>
+            <div class="cal-day-name">水</div><div class="cal-day-name">木</div><div class="cal-day-name">金</div>
+            <div class="cal-day-name sat">土</div>
+          </div>
+          <div class="cal-grid" id="cal-rsv-days"></div>
+          <div class="selected-date-display" id="selected-rsv-date-display">希望開始日を選択してください</div>
+        </div>
+      </div>
+      <div class="confirm-row" style="flex-direction:column;align-items:flex-start;gap:6px;">
+        <span class="confirm-label">備考（任意）</span>
+        <textarea id="reserve-note-input" placeholder="例：体育祭で使用予定" style="width:100%;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;font-family:inherit;resize:vertical;min-height:70px;outline:none;box-sizing:border-box;"></textarea>
+      </div>
+    </div>
+    <button class="primary-btn" id="reserve-submit-btn" onclick="completeReservation()" disabled>📋 予約を申し込む</button>
+    <button class="secondary-btn" onclick="showScreen('item-detail')">キャンセル</button>
+  </div>
+
+  <!-- RESERVE SUCCESS（予約完了） -->
+  <div id="screen-reserve-success" class="screen">
+    <div class="success-wrap">
+      <div class="success-icon blue">📋</div>
+      <div class="success-title">予約を受け付けました</div>
+      <div class="success-subtitle">管理者が確認後、承認されます。マイページで予約状況を確認できます。</div>
+      <div class="success-detail">
+        <div class="confirm-row"><span class="confirm-label">備品名</span><span class="confirm-value" id="rsv-success-name"></span></div>
+        <div class="confirm-row" style="border-bottom:none"><span class="confirm-label">希望開始日</span><span class="confirm-value" id="rsv-success-date" style="color:var(--cobalt)"></span></div>
+      </div>
+      <button class="primary-btn" onclick="showScreen('home');setNav('home')">ホームへ戻る</button>
+    </div>
+  </div>
+
   <!-- RETURN SELECT -->
   <div id="screen-return-select" class="screen">
     <button class="back-btn" onclick="showScreen('home');setNav('home')">‹ ホームへ戻る</button>
@@ -646,10 +711,10 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
       <div class="section-title">現在の貸出</div>
       <div id="mypage-current-loans-list"><div style="text-align:center;color:var(--gray-400);padding:20px;font-size:13px;">読み込み中…</div></div>
     </div>
-    <!-- 予約中（フェーズ5実装予定） -->
+    <!-- 予約中（動的レンダリング） -->
     <div style="margin-top:20px">
       <div class="section-title">予約中</div>
-      <div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">予約中の備品はありません</div></div>
+      <div id="mypage-reservations-list"><div style="text-align:center;color:var(--gray-400);padding:20px;font-size:13px;">読み込み中…</div></div>
     </div>
     <!-- 過去の貸出履歴（動的レンダリング） -->
     <div style="margin-top:8px">
@@ -762,7 +827,12 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
 
 
 <script>
-const S={hasOverdue:false,hasDueSoon:false,selectedDueDate:null,selectedExDate:null,calYear:0,calMonth:0,exCalYear:0,exCalMonth:0,fromBorrow:false,fromHistory:false,currentItemName:'',currentItemIcon:'',currentBadge:'',currentAsset:''};
+// ── フェーズ4 定数 ──────────────────────────
+var MAX_CONCURRENT_LOANS = 100;  // F-16: 同時貸出上限（行事一括貸出対応で100件）
+var MAX_LOAN_DAYS = 14;        // 最大貸出日数（カレンダー上限）
+var myReservations = [];       // F-17: 予約データキャッシュ
+
+const S={hasOverdue:false,hasDueSoon:false,hasLoanLimit:false,selectedDueDate:null,selectedExDate:null,calYear:0,calMonth:0,exCalYear:0,exCalMonth:0,fromBorrow:false,fromHistory:false,currentItemName:'',currentItemIcon:'',currentBadge:'',currentAsset:'',currentLoanHasReservation:false,rsvCalYear:0,rsvCalMonth:0,selectedRsvDate:null,rsvMinDate:null};
 const DOW=['日','月','火','水','木','金','土'];
 // JST（日本時間）でISO文字列を返す
 function toJST(date){
@@ -783,10 +853,14 @@ function fmtD(y,m,d){return`${y}/${p(m+1)}/${p(d)}`;}
 function p(n){return String(n).padStart(2,'0');}
 function updateOverdueUI(){
   document.getElementById('overdue-banner').classList.toggle('show',S.hasOverdue);
-  document.getElementById('borrow-action').classList.toggle('disabled',S.hasOverdue);
+  var shouldDisable = S.hasOverdue || S.hasLoanLimit;
+  document.getElementById('borrow-action').classList.toggle('disabled',shouldDisable);
   document.getElementById('notif-btn').classList.toggle('hidden',!S.hasOverdue&&!S.hasDueSoon);
   document.getElementById('stat-overdue-wrap').style.display=S.hasOverdue?'':'none';
   document.getElementById('stat-duesoon-wrap').style.display=S.hasDueSoon?'':'none';
+  // F-16: 貸出上限バナー
+  var limitBanner = document.getElementById('loan-limit-banner');
+  if(limitBanner) limitBanner.style.display = S.hasLoanLimit ? 'flex' : 'none';
 }
 function showScreen(name){
   document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
@@ -802,6 +876,7 @@ function showScreen(name){
     // ✅ マイページ表示のたびに最新データを反映
     updateMypageRoleBadge();
     if(currentUser) loadMypageHistory(currentUser.email);
+    if(currentUser) loadMyReservations(currentUser.email); // F-17: 予約一覧更新
   }
   if(name==='return-select'){
     renderReturnScreen();
@@ -837,7 +912,7 @@ function showScreen(name){
 }
 function setNav(name){document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));const m={home:'nav-home',borrow:'nav-borrow',return:'nav-return',mypage:'nav-mypage'};if(m[name])document.getElementById(m[name]).classList.add('active');}
 function jumpToMyLoans(){showScreen('mypage');setNav('mypage');setTimeout(()=>document.getElementById('mypage-loans').scrollIntoView({behavior:'smooth'}),120);}
-function goBorrow(){if(S.hasOverdue)return;showScreen('categories');setNav('borrow');}
+function goBorrow(){if(S.hasOverdue||S.hasLoanLimit)return;showScreen('categories');setNav('borrow');}
 function showItems(name){document.getElementById('items-title').textContent=name;document.getElementById('items-page-title').textContent=name;showScreen('items');}
 function activateTab(el){el.closest('.sub-category-tabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');}
 
@@ -888,30 +963,49 @@ function setDetailContent(name,icon,badge,asset){
 // 読み取り専用（ホーム・マイページ現在貸出から）：借りるボタンなし、延長ボタンあり
 function goToDetailReadOnly(name,icon,badge,asset,loanId){
   S.fromBorrow=false; S.fromHistory=false;
-  S.currentLoanId = loanId || null; // 期限延長に使用
+  S.currentLoanId = loanId || null;
   setDetailContent(name,icon,badge,asset);
   document.getElementById('borrow-top-btn').style.display='none';
-  document.getElementById('extend-top-btn').style.display='block'; // 予約なしを想定
+  document.getElementById('reserve-top-btn').style.display='none';
   document.getElementById('extend-item-name').textContent=name;
+  // 予約が入っているか確認して延長ボタン/予約通知を制御
+  checkReservationForAsset(asset, function(hasRsv){
+    S.currentLoanHasReservation = hasRsv;
+    document.getElementById('extend-top-btn').style.display = hasRsv ? 'none' : 'block';
+    document.getElementById('reserve-notice-btn').style.display = hasRsv ? 'block' : 'none';
+  });
   showScreen('item-detail');
 }
 
-// 貸出一覧から：借りるボタンあり
+// 貸出一覧から：借りるボタン＋予約ボタンあり
 function goToDetailBorrowable(name,icon,badge,asset){
   S.fromBorrow=true; S.fromHistory=false;
   setDetailContent(name,icon,badge,asset);
   document.getElementById('borrow-top-btn').style.display='block';
+  document.getElementById('reserve-top-btn').style.display='block';
   document.getElementById('extend-top-btn').style.display='none';
+  document.getElementById('reserve-notice-btn').style.display='none';
   showScreen('item-detail');
 }
 
-// 過去履歴から：借りるボタンあり（また借りる）
+// 過去履歴から：借りるボタン＋予約ボタンあり（また借りる）
 function goToDetailFromHistory(name,icon,badge,asset){
   S.fromBorrow=true; S.fromHistory=true;
   setDetailContent(name,icon,badge,asset);
   document.getElementById('borrow-top-btn').style.display='block';
+  document.getElementById('reserve-top-btn').style.display='block';
   document.getElementById('extend-top-btn').style.display='none';
+  document.getElementById('reserve-notice-btn').style.display='none';
   showScreen('item-detail');
+}
+
+// 指定備品に有効な予約があるか確認するヘルパー
+function checkReservationForAsset(asset, callback){
+  // キャッシュ済み予約一覧から確認
+  var hasRsv = allReservations.some(function(r){
+    return r.resource_id === asset && (r.status === 'pending' || r.status === 'approved');
+  });
+  callback(hasRsv);
 }
 
 function detailBack(){
@@ -923,6 +1017,7 @@ function detailBack(){
 /* CALENDAR（貸出用） */
 function renderCalendar(){
   const y=S.calYear,m=S.calMonth,today=new Date();today.setHours(0,0,0,0);
+  var maxDate=new Date(today);maxDate.setDate(today.getDate()+MAX_LOAN_DAYS);maxDate.setHours(0,0,0,0);
   document.getElementById('cal-month-label').textContent=`${y}年 ${m+1}月`;
   const firstDay=new Date(y,m,1).getDay(),daysInMonth=new Date(y,m+1,0).getDate();
   const grid=document.getElementById('cal-days');grid.innerHTML='';
@@ -930,7 +1025,7 @@ function renderCalendar(){
   for(let d=1;d<=daysInMonth;d++){
     const el=document.createElement('div'),thisDate=new Date(y,m,d);thisDate.setHours(0,0,0,0);
     el.className='cal-day';el.textContent=d;
-    if(thisDate<today){el.classList.add('disabled');}
+    if(thisDate<today||thisDate>maxDate){el.classList.add('disabled');}
     else{
       const dow=thisDate.getDay();
       if(dow===0)el.classList.add('sun');if(dow===6)el.classList.add('sat');
@@ -1068,6 +1163,210 @@ function completeExtend(){
       alert('期限変更に失敗しました。再度お試しください。\n'+err.message);
       btn.textContent='🔄 変更を確定する'; btn.disabled=false;
     });
+}
+
+/* ── 予約カレンダー（F-17） ─────────────────────── */
+
+function renderCalendarRsv(){
+  var y=S.rsvCalYear,m=S.rsvCalMonth;
+  var today=new Date();today.setHours(0,0,0,0);
+  // 貸出中なら返却予定日翌日、そうでなければ今日が最小選択日
+  var minDate = S.rsvMinDate || today;
+  document.getElementById('cal-rsv-month-label').textContent=y+'年 '+(m+1)+'月';
+  var firstDay=new Date(y,m,1).getDay();
+  var daysInMonth=new Date(y,m+1,0).getDate();
+  var grid=document.getElementById('cal-rsv-days');
+  if(!grid)return;
+  grid.innerHTML='';
+  for(var i=0;i<firstDay;i++){var emp=document.createElement('div');emp.className='cal-day empty';grid.appendChild(emp);}
+  for(var d=1;d<=daysInMonth;d++){
+    var el=document.createElement('div');
+    var thisDate=new Date(y,m,d);thisDate.setHours(0,0,0,0);
+    el.className='cal-day';el.textContent=d;
+    if(thisDate<minDate){
+      el.classList.add('disabled');
+    } else {
+      var dow=thisDate.getDay();
+      if(dow===0)el.classList.add('sun');if(dow===6)el.classList.add('sat');
+      if(thisDate.getTime()===today.getTime())el.classList.add('today');
+      if(S.selectedRsvDate&&S.selectedRsvDate.getTime()===thisDate.getTime())el.classList.add('selected');
+      (function(yy,mm,dd){el.onclick=function(){selectRsvDay(yy,mm,dd);};})(y,m,d);
+    }
+    grid.appendChild(el);
+  }
+}
+function changeCalMonthRsv(delta){
+  S.rsvCalMonth+=delta;
+  if(S.rsvCalMonth>11){S.rsvCalMonth=0;S.rsvCalYear++;}
+  if(S.rsvCalMonth<0){S.rsvCalMonth=11;S.rsvCalYear--;}
+  // minDate月より前には戻れない
+  var minDate=S.rsvMinDate||new Date();
+  if(S.rsvCalYear<minDate.getFullYear()||(S.rsvCalYear===minDate.getFullYear()&&S.rsvCalMonth<minDate.getMonth())){
+    S.rsvCalYear=minDate.getFullYear();S.rsvCalMonth=minDate.getMonth();
+  }
+  renderCalendarRsv();
+}
+function selectRsvDay(y,m,d){
+  S.selectedRsvDate=new Date(y,m,d);S.selectedRsvDate.setHours(0,0,0,0);
+  renderCalendarRsv();
+  var disp=document.getElementById('selected-rsv-date-display');
+  if(disp) disp.textContent='希望開始日: '+fmtD(y,m,d)+'（'+DOW[S.selectedRsvDate.getDay()]+'）';
+  var btn=document.getElementById('reserve-submit-btn');
+  if(btn) btn.disabled=false;
+}
+
+// 予約画面へ遷移
+function goToReserveConfirm(){
+  var nameEl=document.getElementById('reserve-item-name');
+  var statusEl=document.getElementById('reserve-item-status');
+  var userEl=document.getElementById('reserve-user-name');
+  if(nameEl) nameEl.textContent=S.currentItemName;
+  if(userEl&&currentUser) userEl.textContent=currentUser.name;
+
+  // 備品の現在状態を取得
+  var res=allResources.filter(function(r){return r.resource_id===S.currentAsset;})[0];
+  var today=new Date();today.setHours(0,0,0,0);
+
+  // 貸出中の場合：現在の貸出レコードから返却予定日を取得し、翌日を最小選択日に設定
+  S.rsvMinDate = today; // デフォルトは今日
+  var statusText = '利用可能（事前予約）';
+  if(res && res.status==='loaned'){
+    // myLoansおよびallLoansキャッシュからこの備品の返却予定日を探す
+    var activeLoan = null;
+    // 全貸出キャッシュを参照（admin側は不要、利用者側のmyLoansで十分）
+    // 他人が借りている場合はsbFetchで取得
+    var cachedLoan = myLoans.filter(function(l){return l.resource_id===S.currentAsset&&l.status==='loaned';})[0];
+    if(cachedLoan && cachedLoan.due_date){
+      var dueDate=new Date(cachedLoan.due_date);dueDate.setHours(0,0,0,0);
+      var minD=new Date(dueDate);minD.setDate(dueDate.getDate()+1); // 返却日の翌日
+      S.rsvMinDate=minD;
+      statusText='貸出中（返却予定日: '+cachedLoan.due_date+' の翌日以降で予約可）';
+    } else {
+      // 他人が借りている備品 → DBから返却予定日を取得
+      statusText='貸出中（返却予定日を確認中…）';
+      sbFetch('loans?resource_id=eq.'+encodeURIComponent(S.currentAsset)+'&status=eq.loaned&select=due_date&limit=1')
+        .then(function(rows){
+          if(rows&&rows.length>0&&rows[0].due_date){
+            var dueDate=new Date(rows[0].due_date);dueDate.setHours(0,0,0,0);
+            var minD=new Date(dueDate);minD.setDate(dueDate.getDate()+1);
+            S.rsvMinDate=minD;
+            // カレンダーの開始月をminDateに合わせる
+            S.rsvCalYear=minD.getFullYear();S.rsvCalMonth=minD.getMonth();
+            // ステータス表示更新
+            if(statusEl) statusEl.textContent='貸出中（'+rows[0].due_date+' の翌日以降で予約可）';
+            renderCalendarRsv();
+          }
+        })
+        .catch(function(){});
+    }
+  }
+
+  if(statusEl) statusEl.textContent=statusText;
+
+  // カレンダー初期化：minDateの月から表示開始
+  S.rsvCalYear=S.rsvMinDate.getFullYear();
+  S.rsvCalMonth=S.rsvMinDate.getMonth();
+  S.selectedRsvDate=null;
+
+  var disp=document.getElementById('selected-rsv-date-display');
+  if(disp){
+    if(S.rsvMinDate>today){
+      disp.textContent='返却予定日の翌日（'+fmtD(S.rsvMinDate.getFullYear(),S.rsvMinDate.getMonth(),S.rsvMinDate.getDate())+'）以降を選択してください';
+    } else {
+      disp.textContent='希望開始日を選択してください';
+    }
+  }
+  var btn=document.getElementById('reserve-submit-btn');
+  if(btn) btn.disabled=true;
+  var note=document.getElementById('reserve-note-input');
+  if(note) note.value='';
+  renderCalendarRsv();
+  showScreen('reserve-confirm');
+}
+
+// 予約を確定する
+function completeReservation(){
+  if(!S.selectedRsvDate||!currentUser) return;
+  var btn=document.getElementById('reserve-submit-btn');
+  btn.textContent='処理中...';btn.disabled=true;
+  var startStr=fmtD(S.selectedRsvDate.getFullYear(),S.selectedRsvDate.getMonth(),S.selectedRsvDate.getDate());
+  var rsvId='RV'+Date.now();
+  var note=(document.getElementById('reserve-note-input')||{}).value||'';
+  sbInsert('reservations',{
+    reservation_id:rsvId,
+    resource_id:S.currentAsset,
+    user_email:currentUser.email,
+    user_name:currentUser.name,
+    desired_start:startStr,
+    status:'pending',
+    note:note.trim()||null
+  }).then(function(){
+    document.getElementById('rsv-success-name').textContent=S.currentItemName;
+    document.getElementById('rsv-success-date').textContent=startStr+'（'+DOW[S.selectedRsvDate.getDay()]+'）';
+    btn.textContent='📋 予約を申し込む';btn.disabled=false;
+    loadMyReservations(currentUser.email);
+    showScreen('reserve-success');setNav('home');
+  }).catch(function(err){
+    console.error('予約エラー:',err);
+    alert('予約に失敗しました。再度お試しください。\n'+err.message);
+    btn.textContent='📋 予約を申し込む';btn.disabled=false;
+  });
+}
+
+/* 予約データを読み込む */
+var allReservations=[];
+function loadMyReservations(email){
+  sbFetch('reservations?user_email=eq.'+encodeURIComponent(email)+'&status=in.(pending,approved)&order=desired_start.asc')
+    .then(function(data){
+      myReservations=data||[];
+      allReservations=data||[];
+      renderMypageReservations();
+      // ヒーローカードの予約数更新
+      var numEl=document.getElementById('stat-reservation-num');
+      if(numEl) numEl.textContent=myReservations.length;
+    })
+    .catch(function(err){console.error('予約取得エラー:',err);});
+}
+
+/* マイページ：予約一覧を描画 */
+function renderMypageReservations(){
+  var container=document.getElementById('mypage-reservations-list');
+  if(!container)return;
+  container.innerHTML='';
+  if(!myReservations||myReservations.length===0){
+    var empty=document.createElement('div');empty.className='empty-state';
+    var ei=document.createElement('div');ei.className='empty-icon';ei.textContent='📋';
+    var et=document.createElement('div');et.className='empty-text';et.textContent='予約中の備品はありません';
+    empty.appendChild(ei);empty.appendChild(et);container.appendChild(empty);return;
+  }
+  myReservations.forEach(function(rsv){
+    var res=allResources.filter(function(r){return r.resource_id===rsv.resource_id;})[0]||{};
+    var card=document.createElement('div');
+    card.className='loan-card';card.style.cursor='default';
+    var iconDiv=document.createElement('div');iconDiv.className='loan-icon';iconDiv.textContent=getResourceIcon(res);
+    var infoDiv=document.createElement('div');infoDiv.className='loan-info';
+    var nameDiv=document.createElement('div');nameDiv.className='loan-name';
+    nameDiv.textContent=(res.name||'（備品名不明）')+(res.number?' '+res.number:'');
+    var metaDiv=document.createElement('div');metaDiv.className='loan-meta';
+    metaDiv.textContent='希望開始日: '+(rsv.desired_start||'—');
+    infoDiv.appendChild(nameDiv);infoDiv.appendChild(metaDiv);
+    var statusDiv=document.createElement('div');statusDiv.className='loan-status';
+    var badge=document.createElement('span');badge.className='badge';
+    if(rsv.status==='approved'){badge.className+=' badge-active';badge.textContent='承認済';}
+    else{badge.className+=' badge-due-soon';badge.textContent='申請中';}
+    // キャンセルボタン
+    var cancelBtn=document.createElement('button');cancelBtn.className='return-btn';
+    cancelBtn.style.background='var(--danger)';cancelBtn.textContent='取消';
+    cancelBtn.addEventListener('click',function(){
+      if(!confirm('「'+( res.name||'この備品')+'」の予約を取り消しますか？'))return;
+      sbPatch('reservations?reservation_id=eq.'+encodeURIComponent(rsv.reservation_id),{status:'cancelled'})
+        .then(function(){loadMyReservations(currentUser.email);})
+        .catch(function(){alert('取消に失敗しました。');});
+    });
+    statusDiv.appendChild(badge);statusDiv.appendChild(cancelBtn);
+    card.appendChild(iconDiv);card.appendChild(infoDiv);card.appendChild(statusDiv);
+    container.appendChild(card);
+  });
 }
 
 function toggleReturnSelect(card){
@@ -1505,8 +1804,14 @@ function loginSuccess(user) {
   loadDepartments();
   // ② allResources・allCategoriesが揃ってからloadMyLoansを実行（アイコン・備品名の表示崩れ防止）
   Promise.all([loadResources(), loadCategories()])
-    .then(function() { loadMyLoans(user.email); })
-    .catch(function() { loadMyLoans(user.email); }); // 取得失敗時も貸出表示は試みる
+    .then(function() {
+      loadMyLoans(user.email);
+      loadMyReservations(user.email); // F-17: 予約データ読み込み
+    })
+    .catch(function() {
+      loadMyLoans(user.email);
+      loadMyReservations(user.email);
+    });
 
   // ── 初回ログイン判定 ──────────────────────
   var localKey = 'hongo_tutorial_done_' + user.id;
@@ -2038,14 +2343,22 @@ function renderItemGrid(subCategoryId, parentId) {
       footer.appendChild(borrowBtn);
     }
     card.appendChild(footer);
-    if (!isUnavailable) {
-      var icon = getResourceIcon(item);
-      var rid  = item.resource_id;
-      var dname = item.name + ' ' + (item.number||'');
+    // F-17: 貸出中でも詳細へ遷移して予約できる
+    var icon = getResourceIcon(item);
+    var rid  = item.resource_id;
+    var dname = item.name + (item.number ? ' '+item.number : '');
+    if (!isMaintenance) {
       card.style.cursor = 'pointer';
       card.addEventListener('click', function() { goToDetailBorrowable(dname, icon, badge, rid); });
-      var btn = card.querySelector('.borrow-btn');
-      if (btn) btn.addEventListener('click', function(e) { e.stopPropagation(); goToDetailBorrowable(dname, icon, badge, rid); });
+      var borrowBtnEl = card.querySelector('.borrow-btn');
+      if (borrowBtnEl) borrowBtnEl.addEventListener('click', function(e) { e.stopPropagation(); goToDetailBorrowable(dname, icon, badge, rid); });
+      var reserveBtnEl = card.querySelector('.reserve-btn');
+      if (reserveBtnEl) reserveBtnEl.addEventListener('click', function(e) {
+        e.stopPropagation();
+        // 詳細画面へ遷移してそのまま予約フローへ
+        goToDetailBorrowable(dname, icon, badge, rid);
+        setTimeout(function(){ goToReserveConfirm(); }, 50);
+      });
     }
     grid.appendChild(card);
   });
@@ -2146,6 +2459,7 @@ function updateHomeStats() {
   }).length;
   S.hasOverdue = overdue > 0;
   S.hasDueSoon = dueSoon > 0;
+  S.hasLoanLimit = myLoans.length >= MAX_CONCURRENT_LOANS; // F-16: 上限チェック
   var overdueNumEl = document.getElementById('stat-overdue-num');
   if (overdueNumEl) overdueNumEl.textContent = overdue;
   var dueSoonNumEl = document.getElementById('stat-duesoon-num');
