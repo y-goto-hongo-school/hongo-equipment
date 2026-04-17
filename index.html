@@ -646,8 +646,8 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
   <div id="screen-reserve-success" class="screen">
     <div class="success-wrap">
       <div class="success-icon blue">📋</div>
-      <div class="success-title">予約を受け付けました</div>
-      <div class="success-subtitle">管理者が確認後、承認されます。マイページで予約状況を確認できます。</div>
+      <div class="success-title">予約が完了しました</div>
+      <div class="success-subtitle">マイページで予約状況を確認できます。</div>
       <div class="success-detail">
         <div class="confirm-row"><span class="confirm-label">備品名</span><span class="confirm-value" id="rsv-success-name"></span></div>
         <div class="confirm-row" style="border-bottom:none"><span class="confirm-label">希望開始日</span><span class="confirm-value" id="rsv-success-date" style="color:var(--cobalt)"></span></div>
@@ -1298,7 +1298,7 @@ function completeReservation(){
     user_email:currentUser.email,
     user_name:currentUser.name,
     desired_start:startStr,
-    status:'pending',
+    status:'approved',
     note:note.trim()||null
   }).then(function(){
     document.getElementById('rsv-success-name').textContent=S.currentItemName;
@@ -1353,7 +1353,7 @@ function renderMypageReservations(){
     var statusDiv=document.createElement('div');statusDiv.className='loan-status';
     var badge=document.createElement('span');badge.className='badge';
     if(rsv.status==='approved'){badge.className+=' badge-active';badge.textContent='承認済';}
-    else{badge.className+=' badge-due-soon';badge.textContent='申請中';}
+    else{badge.className+=' badge-active';badge.textContent='予約済み';}
     // キャンセルボタン
     var cancelBtn=document.createElement('button');cancelBtn.className='return-btn';
     cancelBtn.style.background='var(--danger)';cancelBtn.textContent='取消';
