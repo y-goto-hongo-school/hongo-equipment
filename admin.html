@@ -229,6 +229,10 @@ tr:hover td{background:var(--cobalt-ghost);}
     <div class="nav-item" id="nav-users" onclick="switchScreen('users')">
       <span class="nav-icon">👥</span>ユーザー管理
     </div>
+    <div class="nav-item" id="nav-reservations" onclick="switchScreen('reservations')">
+      <span class="nav-icon">📅</span>予約管理
+      <span class="nav-badge" id="nav-reservation-badge" style="display:none">0</span>
+    </div>
     <div class="sidebar-section">リンク</div>
     <div class="nav-item" onclick="window.open('index.html','_blank')">
       <span class="nav-icon">↗</span>利用者画面
@@ -483,6 +487,45 @@ tr:hover td{background:var(--cobalt-ghost);}
           <thead><tr><th>部署名</th><th>部署ID</th><th>操作</th></tr></thead>
           <tbody id="departments-tbody">
             <tr><td colspan="3"><div class="loading"><div class="spinner"></div>読み込み中</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 予約管理 A-12 -->
+    <div class="screen" id="screen-reservations">
+      <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+        <div>
+          <div class="page-title">予約管理</div>
+          <div class="page-subtitle">教職員からの予約申請を確認・承認・却下できます</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select class="form-select" id="rsv-filter-status" style="width:130px" onchange="filterReservations()">
+            <option value="">すべて</option>
+            <option value="pending">申請中</option>
+            <option value="approved">承認済み</option>
+            <option value="cancelled">取消済み</option>
+          </select>
+          <input class="search-input" id="rsv-search" type="text" placeholder="氏名・備品名で検索…" oninput="filterReservations()">
+        </div>
+      </div>
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title" id="reservations-count">予約一覧</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>備品</th>
+              <th>申請者</th>
+              <th>希望開始日</th>
+              <th>申請日</th>
+              <th>状態</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="reservations-tbody">
+            <tr><td colspan="6"><div class="loading"><div class="spinner"></div>読み込み中</div></td></tr>
           </tbody>
         </table>
       </div>
@@ -953,6 +996,13 @@ function launchAdminApp() {
   loadDashboard();
   loadAllCharts();
   loadDepartmentsData();
+  // F-17: 起動時に申請中予約バッジを更新
+  sbFetch('reservations?status=eq.pending&select=reservation_id')
+    .then(function(data){
+      var cnt = (data||[]).length;
+      var badge = document.getElementById('nav-reservation-badge');
+      if (badge) { badge.textContent = cnt; badge.style.display = cnt > 0 ? '' : 'none'; }
+    }).catch(function(){});
 }
 
 function doLogout() {
@@ -978,6 +1028,7 @@ function switchScreen(name) {
   if (name === 'users' && allUsers.length === 0) loadUsers();
   if (name === 'categories') loadCategories();
   if (name === 'departments') loadDepartments();
+  if (name === 'reservations') loadReservationsAdmin();
 }
 
 // ═══════════════════════════════════════════════
@@ -1421,6 +1472,151 @@ function loadChartHeatmap() {
 }
 
 
+
+// ═══════════════════════════════════════════════
+// 予約管理 A-12
+// ═══════════════════════════════════════════════
+var allReservationsAdmin = [];
+
+function loadReservationsAdmin() {
+  var tbody = document.getElementById('reservations-tbody');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="6"><div class="loading"><div class="spinner"></div>読み込み中</div></td></tr>';
+
+  sbFetch('reservations?order=created_at.desc&select=reservation_id,resource_id,user_email,user_name,desired_start,status,note,created_at,resources(name,number)')
+    .then(function(data) {
+      allReservationsAdmin = data || [];
+      // 申請中バッジ更新
+      var pendingCount = allReservationsAdmin.filter(function(r){ return r.status === 'pending'; }).length;
+      var badge = document.getElementById('nav-reservation-badge');
+      if (badge) { badge.textContent = pendingCount; badge.style.display = pendingCount > 0 ? '' : 'none'; }
+      var countEl = document.getElementById('reservations-count');
+      if (countEl) countEl.textContent = '予約一覧（' + allReservationsAdmin.length + '件）';
+      renderReservationsAdmin(allReservationsAdmin);
+    })
+    .catch(function(err) {
+      console.error('予約取得エラー:', err);
+      if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--danger);padding:24px">データ取得に失敗しました</td></tr>';
+    });
+}
+
+function filterReservations() {
+  var status = document.getElementById('rsv-filter-status').value;
+  var q = (document.getElementById('rsv-search').value || '').toLowerCase();
+  var filtered = allReservationsAdmin.filter(function(r) {
+    if (status && r.status !== status) return false;
+    if (q) {
+      var name = (r.resources ? r.resources.name : '').toLowerCase();
+      var user = (r.user_name || r.user_email || '').toLowerCase();
+      if (!name.includes(q) && !user.includes(q)) return false;
+    }
+    return true;
+  });
+  renderReservationsAdmin(filtered);
+}
+
+function renderReservationsAdmin(data) {
+  var tbody = document.getElementById('reservations-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  if (!data || data.length === 0) {
+    var tr = document.createElement('tr');
+    var td = document.createElement('td'); td.colSpan = 6; td.className = 'empty-row';
+    td.textContent = '該当する予約がありません';
+    tr.appendChild(td); tbody.appendChild(tr); return;
+  }
+  data.forEach(function(rsv) {
+    var tr = document.createElement('tr');
+
+    // 備品名
+    var tdRes = document.createElement('td');
+    tdRes.style.fontWeight = '600';
+    tdRes.textContent = rsv.resources ? rsv.resources.name : '不明';
+    if (rsv.resources && rsv.resources.number) {
+      var ns = document.createElement('span');
+      ns.style.cssText = 'display:block;font-size:11px;font-weight:400;color:var(--gray-400);font-family:monospace;';
+      ns.textContent = rsv.resources.number;
+      tdRes.appendChild(ns);
+    }
+
+    // 申請者
+    var tdUser = document.createElement('td');
+    tdUser.textContent = rsv.user_name || rsv.user_email || '不明';
+    if (rsv.note) {
+      var noteSpan = document.createElement('span');
+      noteSpan.style.cssText = 'display:block;font-size:11px;color:var(--gray-400);margin-top:2px;';
+      noteSpan.textContent = '📝 ' + rsv.note;
+      tdUser.appendChild(noteSpan);
+    }
+
+    // 希望開始日
+    var tdStart = document.createElement('td');
+    tdStart.textContent = rsv.desired_start || '—';
+
+    // 申請日
+    var tdCreated = document.createElement('td');
+    tdCreated.textContent = rsv.created_at ? rsv.created_at.slice(0,10) : '—';
+    tdCreated.style.color = 'var(--gray-400)';
+    tdCreated.style.fontSize = '12px';
+
+    // 状態バッジ
+    var tdStatus = document.createElement('td');
+    var badge = document.createElement('span');
+    badge.className = 'badge';
+    if (rsv.status === 'pending') { badge.className += ' badge-loaned'; badge.textContent = '申請中'; }
+    else if (rsv.status === 'approved') { badge.className += ' badge-active'; badge.textContent = '承認済み'; }
+    else { badge.className += ' badge-returned'; badge.textContent = '取消済み'; }
+    tdStatus.appendChild(badge);
+
+    // 操作ボタン
+    var tdAction = document.createElement('td');
+    tdAction.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;';
+
+    if (rsv.status === 'pending') {
+      var approveBtn = document.createElement('button');
+      approveBtn.className = 'btn btn-sm btn-primary';
+      approveBtn.textContent = '✅ 承認';
+      approveBtn.addEventListener('click', function() { updateReservationStatus(rsv.reservation_id, 'approved'); });
+      var cancelBtn = document.createElement('button');
+      cancelBtn.className = 'btn btn-sm btn-danger';
+      cancelBtn.textContent = '✗ 却下';
+      cancelBtn.addEventListener('click', function() { updateReservationStatus(rsv.reservation_id, 'cancelled'); });
+      tdAction.appendChild(approveBtn);
+      tdAction.appendChild(cancelBtn);
+    } else if (rsv.status === 'approved') {
+      var cancelBtn2 = document.createElement('button');
+      cancelBtn2.className = 'btn btn-sm btn-danger';
+      cancelBtn2.textContent = '取消';
+      cancelBtn2.addEventListener('click', function() { updateReservationStatus(rsv.reservation_id, 'cancelled'); });
+      tdAction.appendChild(cancelBtn2);
+    } else {
+      tdAction.textContent = '—';
+      tdAction.style.color = 'var(--gray-400)';
+    }
+
+    tr.appendChild(tdRes);
+    tr.appendChild(tdUser);
+    tr.appendChild(tdStart);
+    tr.appendChild(tdCreated);
+    tr.appendChild(tdStatus);
+    tr.appendChild(tdAction);
+    tbody.appendChild(tr);
+  });
+}
+
+function updateReservationStatus(rsvId, newStatus) {
+  var msg = newStatus === 'approved' ? '承認' : '却下・取消';
+  if (!confirm('この予約を「' + msg + '」しますか？')) return;
+  sbPatch('reservations?reservation_id=eq.' + encodeURIComponent(rsvId), { status: newStatus, updated_at: new Date().toISOString() })
+    .then(function() {
+      showToast('✅ 予約を' + msg + 'しました', 'success');
+      allReservationsAdmin = []; // キャッシュクリア
+      loadReservationsAdmin();
+    })
+    .catch(function(err) {
+      console.error('予約更新エラー:', err);
+      showToast('エラーが発生しました', 'error');
+    });
+}
 
 // ═══════════════════════════════════════════════
 // 貸出管理
