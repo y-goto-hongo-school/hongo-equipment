@@ -65,19 +65,24 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
 .section-title::after{content:'';flex:1;height:1px;background:var(--gray-200);}
 
 /* HOME */
-.home-hero{background:linear-gradient(135deg,var(--cobalt-dark),var(--cobalt-mid));border-radius:var(--radius-lg);padding:28px 28px 24px;color:#fff;margin-bottom:20px;position:relative;overflow:hidden;cursor:pointer;transition:filter .2s;}
+.home-hero{background:linear-gradient(135deg,var(--cobalt-dark),var(--cobalt-mid));border-radius:var(--radius-lg);padding:24px 24px 20px;color:#fff;margin-bottom:20px;position:relative;overflow:hidden;cursor:pointer;transition:filter .2s;}
 .home-hero:hover{filter:brightness(1.06);}
 .home-hero::before{content:'';position:absolute;right:-40px;top:-40px;width:200px;height:200px;background:rgba(255,255,255,.04);border-radius:50%;}
-.hero-greeting{font-size:12px;opacity:.72;margin-bottom:4px;font-weight:300;}
-.hero-name{font-family:'Noto Serif JP',serif;font-size:22px;font-weight:700;margin-bottom:16px;}
-.hero-name span{font-size:14px;font-weight:400;opacity:.8;margin-left:4px;}
-.hero-stats{display:flex;gap:12px;flex-wrap:wrap;}
-.hero-stat{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2);border-radius:var(--radius-sm);padding:10px 16px;backdrop-filter:blur(4px);}
-.hero-stat .num{font-size:22px;font-weight:700;line-height:1;}
+.hero-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:12px;}
+.hero-top-left{flex:1;min-width:0;}
+.hero-greeting{font-size:12px;opacity:.72;margin-bottom:5px;font-weight:300;}
+.hero-name{font-family:'Noto Serif JP',serif;font-size:26px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hero-top-right{text-align:right;flex-shrink:0;}
+.hero-due-num{font-size:52px;font-weight:700;line-height:1;opacity:.95;}
+.hero-due-label{font-size:11px;opacity:.62;margin-top:3px;}
+.hero-due-unit{font-size:18px;font-weight:400;opacity:.85;margin-left:2px;}
+.hero-stats{display:flex;gap:10px;flex-wrap:wrap;}
+.hero-stat{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2);border-radius:var(--radius-sm);padding:9px 14px;backdrop-filter:blur(4px);flex:1;min-width:60px;text-align:center;}
+.hero-stat .num{font-size:20px;font-weight:700;line-height:1;}
 .hero-stat .label{font-size:10px;opacity:.75;margin-top:3px;}
 .hero-stat.warn{background:rgba(184,92,0,.3);border-color:rgba(184,92,0,.5);}
 .hero-stat.alert{background:rgba(192,57,43,.3);border-color:rgba(192,57,43,.5);}
-.hero-hint{font-size:11px;opacity:.55;margin-top:12px;}
+.hero-hint{font-size:11px;opacity:.55;margin-top:10px;}
 
 .overdue-banner{background:var(--danger-light);border:1.5px solid var(--danger);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;display:none;align-items:center;gap:12px;}
 .overdue-banner.show{display:flex;}
@@ -392,8 +397,16 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
       <div class="ob-text">返却期限を過ぎた備品があります。返却が完了するまで新規の貸出はできません。</div>
     </div>
     <div class="home-hero" onclick="jumpToMyLoans()">
-      <div class="hero-greeting" id="hero-greeting">こんにちは</div>
-      <div class="hero-name" id="hero-name"><span id="hero-name-text">先生</span></div>
+      <div class="hero-top">
+        <div class="hero-top-left">
+          <div class="hero-greeting" id="hero-greeting">こんにちは</div>
+          <div class="hero-name" id="hero-name"><span id="hero-name-text">先生</span></div>
+        </div>
+        <div class="hero-top-right" id="hero-due-wrap" style="display:none">
+          <div class="hero-due-num" id="hero-due-num">—</div>
+          <div class="hero-due-label" id="hero-due-label">日後に返却</div>
+        </div>
+      </div>
       <div class="hero-stats">
         <div class="hero-stat"><div class="num" id="stat-loan-num">—</div><div class="label">貸出中</div></div>
         <div class="hero-stat warn" id="stat-duesoon-wrap"><div class="num" id="stat-duesoon-num">—</div><div class="label">期限間近</div></div>
@@ -453,7 +466,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
 
     <!-- 延長ボタン（読み取り専用かつ予約なしの時のみ表示） -->
     <div id="extend-top-btn" style="display:none;margin-bottom:14px;">
-      <button class="extend-btn" onclick="showScreen('extend-confirm')">🔄 返却期限を延長する</button>
+      <button class="extend-btn" onclick="showScreen('extend-confirm')">🔄 返却期限を変更する</button>
     </div>
 
     <div class="detail-card">
@@ -519,10 +532,10 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
     <button class="secondary-btn" onclick="showScreen('items')">キャンセル</button>
   </div>
 
-  <!-- EXTEND CONFIRM（期限延長） -->
+  <!-- EXTEND CONFIRM（期限変更） -->
   <div id="screen-extend-confirm" class="screen">
     <button class="back-btn" onclick="showScreen('item-detail')">‹ 詳細へ戻る</button>
-    <div class="page-header"><div class="page-title">返却期限の延長</div><div class="page-subtitle">新しい返却日を選択してください（予約がない場合のみ延長可）</div></div>
+    <div class="page-header"><div class="page-title">返却期限の変更</div><div class="page-subtitle">新しい返却日を選択してください（予約がない場合のみ変更可）</div></div>
     <div class="confirm-card">
       <div class="confirm-title">延長情報</div>
       <div class="confirm-row"><span class="confirm-label">備品名</span><span class="confirm-value" id="extend-item-name">Chromebook No.03</span></div>
@@ -545,7 +558,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
         </div>
       </div>
     </div>
-    <button class="primary-btn" id="extend-submit-btn" onclick="completeExtend()" disabled>🔄 延長を確定する</button>
+    <button class="primary-btn" id="extend-submit-btn" onclick="completeExtend()" disabled>🔄 変更を確定する</button>
     <button class="secondary-btn" onclick="showScreen('item-detail')">キャンセル</button>
   </div>
 
@@ -704,15 +717,22 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
       <div class="help-item">
         <span class="help-item-icon">🔄</span>
         <div class="help-item-text">
-          <div class="help-item-title">期限延長</div>
-          <div class="help-item-desc">ホーム「現在の貸出」の備品をタップ → 備品詳細 →「返却期限を延長する」</div>
+          <div class="help-item-title">期限変更</div>
+          <div class="help-item-desc">ホーム「現在の貸出」の備品をタップ → 備品詳細 →「返却期限を変更する」（延長・短縮どちらも可）</div>
         </div>
       </div>
       <div class="help-item">
         <span class="help-item-icon">👤</span>
         <div class="help-item-text">
           <div class="help-item-title">マイページ</div>
-          <div class="help-item-desc">貸出履歴の確認・「また借りる」での再貸出・パスワード変更</div>
+          <div class="help-item-desc">ヘッダー右上の名前をタップ →「マイページ」。貸出履歴の確認・「また借りる」での再貸出・パスワード変更</div>
+        </div>
+      </div>
+      <div class="help-item">
+        <span class="help-item-icon">🚪</span>
+        <div class="help-item-text">
+          <div class="help-item-title">ログアウト</div>
+          <div class="help-item-desc">ヘッダー右上の名前をタップ →「ログアウト」。共有端末を使用後は必ずログアウトしてください</div>
         </div>
       </div>
     </div>
@@ -1040,13 +1060,13 @@ function completeExtend(){
       document.getElementById('ex-success-name').textContent=S.currentItemName;
       document.getElementById('ex-success-due').textContent=fmtD(due.getFullYear(),due.getMonth(),due.getDate())+`（${DOW[due.getDay()]}）`;
       document.getElementById('extend-success-text').textContent=msg;
-      btn.textContent='🔄 延長を確定する'; btn.disabled=false;
+      btn.textContent='🔄 変更を確定する'; btn.disabled=false;
       showScreen('extend-success');setNav('home');
     })
     .catch(function(err){
-      console.error('延長エラー:',err);
-      alert('期限延長に失敗しました。再度お試しください。\n'+err.message);
-      btn.textContent='🔄 延長を確定する'; btn.disabled=false;
+      console.error('期限変更エラー:',err);
+      alert('期限変更に失敗しました。再度お試しください。\n'+err.message);
+      btn.textContent='🔄 変更を確定する'; btn.disabled=false;
     });
 }
 
@@ -2131,6 +2151,36 @@ function updateHomeStats() {
   var dueSoonNumEl = document.getElementById('stat-duesoon-num');
   if (dueSoonNumEl) dueSoonNumEl.textContent = dueSoon;
   updateOverdueUI();
+  // 最も近い返却期限までの残り日数を右上に表示
+  var dueWrap = document.getElementById('hero-due-wrap');
+  var dueNumEl = document.getElementById('hero-due-num');
+  var dueLabelEl = document.getElementById('hero-due-label');
+  if (dueWrap && dueNumEl && dueLabelEl) {
+    var activeLoans = myLoans.filter(function(l) { return l.due_date; });
+    if (activeLoans.length > 0) {
+      var nearest = activeLoans.reduce(function(a, b) {
+        return new Date(a.due_date) <= new Date(b.due_date) ? a : b;
+      });
+      var nearestDate = new Date(nearest.due_date); nearestDate.setHours(0,0,0,0);
+      var daysLeft = Math.round((nearestDate - today) / 864e5);
+      if (daysLeft < 0) {
+        dueNumEl.textContent = Math.abs(daysLeft);
+        dueLabelEl.textContent = '日 超過';
+        dueWrap.style.opacity = '1';
+      } else if (daysLeft === 0) {
+        dueNumEl.textContent = '今日';
+        dueLabelEl.textContent = '返却期限';
+        dueWrap.style.opacity = '1';
+      } else {
+        dueNumEl.textContent = daysLeft;
+        dueLabelEl.textContent = '日後に返却';
+        dueWrap.style.opacity = '1';
+      }
+      dueWrap.style.display = '';
+    } else {
+      dueWrap.style.display = 'none';
+    }
+  }
 }
 
 
@@ -2149,15 +2199,15 @@ var TUTORIAL_PAGES = [
         desc:'①ホーム画面の「備品を借りる」ボタン、または②画面下の「借りる」タブ、どちらからでも借りられます。カテゴリを選んで備品を選択し、返却日を設定してください。' },
       { num:'2', title:'返却する',
         desc:'返却方法は3通りあります。①ホーム「現在の貸出」の「返却」ボタン、②ホームの「返却する」ボタン、③画面下の「返却」タブ。いずれもコメントを添えて返却できます。' },
-      { num:'3', title:'期限延長',
-        desc:'ホーム「現在の貸出」の備品をタップ → 備品詳細画面から返却期限を延長できます（予約が入っていない場合のみ）。' },
+      { num:'3', title:'返却期限の変更',
+        desc:'ホーム「現在の貸出」の備品をタップ → 備品詳細画面から返却期限を変更できます（延長・短縮どちらも可。予約が入っていない場合のみ）。' },
     ]
   },
   {
     title: 'マイページと便利な機能',
     steps: [
-      { num:'4', title:'マイページ',
-        desc:'現在借りている備品・過去の履歴を確認できます。過去の履歴には「また借りる」ボタンがあり、素早く再貸出できます。' },
+      { num:'4', title:'マイページ・ログアウト',
+        desc:'ヘッダー右上の名前をタップするとメニューが開きます。「マイページ」では貸出履歴の確認や「また借りる」での再貸出ができます。「ログアウト」は共有端末利用後に必ず行ってください。' },
       { num:'5', title:'右下の？ボタン',
         desc:'いつでもこの使い方ガイドを表示できます。チュートリアルの再表示もここから行えます。' },
       { num:'6', title:'パスワード変更',
