@@ -931,16 +931,6 @@ function setNav(name){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   const m={home:'nav-home',borrow:'nav-borrow',reserve:'nav-borrow',return:'nav-return',mypage:'nav-mypage'};
   if(m[name])document.getElementById(m[name]).classList.add('active');
-  // ホーム画面ではナビを常に固定表示
-  var nav=document.querySelector('nav.bottom-nav');
-  if(nav){
-    if(name==='home'){
-      nav.classList.remove('hide');
-      nav.dataset.locked='1';
-    } else {
-      nav.dataset.locked='0';
-    }
-  }
 }
 function jumpToMyLoans(){showScreen('mypage');setNav('mypage');setTimeout(()=>document.getElementById('mypage-loans').scrollIntoView({behavior:'smooth'}),120);}
 function goBorrow(){if(S.hasOverdue||S.hasLoanLimit)return;S._reserveMode=false;showScreen('categories');setNav('borrow');}
@@ -2850,8 +2840,8 @@ function getResourceIcon(res) {
         var delta = currentY - lastScrollY;
 
         if (delta > NAV_THRESHOLD) {
-          // 下スクロール → 隠す（ホーム固定時は隠さない）
-          if(nav.dataset.locked !== '1') nav.classList.add('hide');
+          // 下スクロール → 隠す
+          nav.classList.add('hide');
         } else if (delta < -NAV_THRESHOLD) {
           // 上スクロール → 見せる
           nav.classList.remove('hide');
@@ -2859,6 +2849,11 @@ function getResourceIcon(res) {
 
         // ページ最上部では必ず表示
         if (currentY <= 0) nav.classList.remove('hide');
+
+        // ページ最下部付近（残り100px以内）でも必ず表示
+        var docHeight = document.documentElement.scrollHeight;
+        var winHeight = window.innerHeight;
+        if (currentY + winHeight >= docHeight - 100) nav.classList.remove('hide');
 
         lastScrollY = currentY;
         ticking = false;
