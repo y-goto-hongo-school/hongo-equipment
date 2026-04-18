@@ -241,12 +241,10 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
   background:#fff;border-top:1px solid var(--gray-200);
   display:flex;padding:8px 0 12px;z-index:90;
   box-shadow:0 -4px 16px rgba(0,0,0,.06);
-  transition:transform .3s cubic-bezier(.4,0,.2,1), opacity .3s ease;
-  transform:translateY(0);
-  will-change:transform;
+  transition:opacity .4s ease;
+  will-change:opacity;
 }
 .bottom-nav.hide{
-  transform:translateY(110%);
   opacity:0;
   pointer-events:none;
 }
@@ -2825,44 +2823,36 @@ function getResourceIcon(res) {
   return '📦';
 }
 
-// ── ボトムナビ スクロール自動隠し ────────────────────
+// ── ボトムナビ フッター連動表示制御 ────────────────────
 (function() {
-  var lastScrollY = 0;
-  var ticking = false;
-  var NAV_THRESHOLD = 10;   // px: この量以上スクロールしたら反応
+  function initNavFooterObserver() {
+    var nav = document.querySelector('nav.bottom-nav');
+    var footer = document.getElementById('app-footer');
+    if (!nav || !footer) return;
 
-  function onScroll() {
-    if (!ticking) {
-      window.requestAnimationFrame(function() {
-        var nav = document.querySelector('nav.bottom-nav');
-        if (!nav || nav.style.display === 'none') { ticking = false; return; }
-        var currentY = window.scrollY || window.pageYOffset;
-        var delta = currentY - lastScrollY;
-
-        if (delta > NAV_THRESHOLD) {
-          // 下スクロール → 隠す
+    var observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          // フッターが画面内に入ったらナビを隠す
           nav.classList.add('hide');
-        } else if (delta < -NAV_THRESHOLD) {
-          // 上スクロール → 見せる
+        } else {
+          // フッターが画面外に出たらナビを表示
           nav.classList.remove('hide');
         }
-
-        // ページ最上部では必ず表示
-        if (currentY <= 0) nav.classList.remove('hide');
-
-        // ページ最下部付近（残り100px以内）でも必ず表示
-        var docHeight = document.documentElement.scrollHeight;
-        var winHeight = window.innerHeight;
-        if (currentY + winHeight >= docHeight - 100) nav.classList.remove('hide');
-
-        lastScrollY = currentY;
-        ticking = false;
       });
-      ticking = true;
-    }
+    }, { threshold: 0 });
+
+    observer.observe(footer);
   }
 
-  window.addEventListener('scroll', onScroll, { passive: true });
+  // ナビが表示されるタイミング（ログイン後）に合わせて初期化
+  var checkInterval = setInterval(function() {
+    var nav = document.querySelector('nav.bottom-nav');
+    if (nav && nav.style.display !== 'none') {
+      initNavFooterObserver();
+      clearInterval(checkInterval);
+    }
+  }, 500);
 })();
 
 window.addEventListener('load', initApp);
