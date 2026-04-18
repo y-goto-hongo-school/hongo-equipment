@@ -419,7 +419,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
       </div>
       <div class="hero-hint">タップして詳細を確認 ›</div>
     </div>
-    <div class="action-grid">
+    <div class="action-grid" style="grid-template-columns:1fr 1fr 1fr;">
       <div class="action-card primary" id="borrow-action" onclick="goBorrow()">
         <div class="action-icon">📦</div>
         <div class="action-info"><div class="action-title">備品を借りる</div><div class="action-desc">カテゴリから選択</div></div>
@@ -428,6 +428,11 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
       <div class="action-card" onclick="showScreen('return-select');setNav('return')">
         <div class="action-icon">↩️</div>
         <div class="action-info"><div class="action-title">返却する</div><div class="action-desc">借りている備品を返す</div></div>
+        <div class="action-arrow">›</div>
+      </div>
+      <div class="action-card" onclick="goReserve()">
+        <div class="action-icon">📋</div>
+        <div class="action-info"><div class="action-title">予約する</div><div class="action-desc">使いたい日を押さえる</div></div>
         <div class="action-arrow">›</div>
       </div>
     </div>
@@ -739,6 +744,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
 <nav class="bottom-nav" style="display:none">
   <div class="nav-item active" id="nav-home" onclick="showScreen('home');setNav('home')"><span class="nav-icon">🏠</span><span class="nav-label">ホーム</span></div>
   <div class="nav-item" id="nav-borrow" onclick="goBorrow();setNav('borrow')"><span class="nav-icon">📦</span><span class="nav-label">借りる</span></div>
+  <div class="nav-item" id="nav-reserve" onclick="goReserve();setNav('reserve')"><span class="nav-icon">📋</span><span class="nav-label">予約</span></div>
   <div class="nav-item" id="nav-return" onclick="showScreen('return-select');setNav('return')"><span class="nav-icon">↩️</span><span class="nav-label">返却</span></div>
   <div class="nav-item" id="nav-mypage" onclick="showScreen('mypage');setNav('mypage')"><span class="nav-icon">👤</span><span class="nav-label">マイページ</span></div>
 </nav>
@@ -829,7 +835,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
 <script>
 // ── フェーズ4 定数 ──────────────────────────
 var MAX_CONCURRENT_LOANS = 100;  // F-16: 同時貸出上限（行事一括貸出対応で100件）
-var MAX_LOAN_DAYS = 14;        // 最大貸出日数（カレンダー上限）
+var MAX_LOAN_DAYS = 30;        // 最大貸出日数（カレンダー上限）
 var myReservations = [];       // F-17: 予約データキャッシュ
 
 const S={hasOverdue:false,hasDueSoon:false,hasLoanLimit:false,selectedDueDate:null,selectedExDate:null,calYear:0,calMonth:0,exCalYear:0,exCalMonth:0,fromBorrow:false,fromHistory:false,currentItemName:'',currentItemIcon:'',currentBadge:'',currentAsset:'',currentLoanHasReservation:false,rsvCalYear:0,rsvCalMonth:0,selectedRsvDate:null,rsvMinDate:null};
@@ -910,9 +916,10 @@ function showScreen(name){
     renderCalendar();
   }
 }
-function setNav(name){document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));const m={home:'nav-home',borrow:'nav-borrow',return:'nav-return',mypage:'nav-mypage'};if(m[name])document.getElementById(m[name]).classList.add('active');}
+function setNav(name){document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));const m={home:'nav-home',borrow:'nav-borrow',reserve:'nav-reserve',return:'nav-return',mypage:'nav-mypage'};if(m[name])document.getElementById(m[name]).classList.add('active');}
 function jumpToMyLoans(){showScreen('mypage');setNav('mypage');setTimeout(()=>document.getElementById('mypage-loans').scrollIntoView({behavior:'smooth'}),120);}
-function goBorrow(){if(S.hasOverdue||S.hasLoanLimit)return;showScreen('categories');setNav('borrow');}
+function goBorrow(){if(S.hasOverdue||S.hasLoanLimit)return;S._reserveMode=false;showScreen('categories');setNav('borrow');}
+function goReserve(){S._reserveMode=true;showScreen('categories');setNav('reserve');}
 function showItems(name){document.getElementById('items-title').textContent=name;document.getElementById('items-page-title').textContent=name;showScreen('items');}
 function activateTab(el){el.closest('.sub-category-tabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');}
 
@@ -985,7 +992,13 @@ function goToDetailBorrowable(name,icon,badge,asset){
   document.getElementById('reserve-top-btn').style.display='block';
   document.getElementById('extend-top-btn').style.display='none';
   document.getElementById('reserve-notice-btn').style.display='none';
-  showScreen('item-detail');
+  // 予約モードで来た場合はそのまま予約画面へ
+  if(S._reserveMode){
+    showScreen('item-detail');
+    setTimeout(function(){ goToReserveConfirm(); }, 50);
+  } else {
+    showScreen('item-detail');
+  }
 }
 
 // 過去履歴から：借りるボタン＋予約ボタンあり（また借りる）
@@ -1010,6 +1023,7 @@ function checkReservationForAsset(asset, callback){
 
 function detailBack(){
   if(S.fromHistory){showScreen('mypage');setNav('mypage');}
+  else if(S._reserveMode){showScreen('categories');setNav('reserve');}
   else if(S.fromBorrow){showScreen('items');}
   else{showScreen('home');setNav('home');}
 }
