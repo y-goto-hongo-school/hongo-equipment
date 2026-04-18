@@ -615,14 +615,14 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
   <!-- RESERVE CONFIRM（予約確認） -->
   <div id="screen-reserve-confirm" class="screen">
     <button class="back-btn" onclick="showScreen('item-detail')">‹ 詳細へ戻る</button>
-    <div class="page-header"><div class="page-title">予約する</div><div class="page-subtitle">希望利用開始日をカレンダーから選択してください</div></div>
+    <div class="page-header"><div class="page-title">予約する</div><div class="page-subtitle">希望利用開始日・返却日をカレンダーから選択してください</div></div>
     <div class="confirm-card">
       <div class="confirm-title">予約情報</div>
       <div class="confirm-row"><span class="confirm-label">備品名</span><span class="confirm-value" id="reserve-item-name">—</span></div>
       <div class="confirm-row"><span class="confirm-label">現在の状態</span><span class="confirm-value" id="reserve-item-status">—</span></div>
       <div class="confirm-row"><span class="confirm-label">予約者</span><span class="confirm-value" id="reserve-user-name">—</span></div>
       <div class="confirm-row" style="flex-direction:column;align-items:flex-start;gap:10px;">
-        <span class="confirm-label">希望利用開始日</span>
+        <span class="confirm-label">① 希望利用開始日</span>
         <div class="calendar-wrap" style="width:100%">
           <div class="cal-header">
             <button class="cal-nav" onclick="changeCalMonthRsv(-1)">‹</button>
@@ -636,6 +636,23 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
           </div>
           <div class="cal-grid" id="cal-rsv-days"></div>
           <div class="selected-date-display" id="selected-rsv-date-display">希望開始日を選択してください</div>
+        </div>
+      </div>
+      <div class="confirm-row" style="flex-direction:column;align-items:flex-start;gap:10px;" id="rsv-end-section" style="display:none">
+        <span class="confirm-label">② 希望返却日 <span style="color:var(--danger);font-size:11px;">※必須</span></span>
+        <div class="calendar-wrap" style="width:100%">
+          <div class="cal-header">
+            <button class="cal-nav" onclick="changeCalMonthRsvEnd(-1)">‹</button>
+            <span class="cal-month" id="cal-rsv-end-month-label"></span>
+            <button class="cal-nav" onclick="changeCalMonthRsvEnd(1)">›</button>
+          </div>
+          <div class="cal-grid">
+            <div class="cal-day-name sun">日</div><div class="cal-day-name">月</div><div class="cal-day-name">火</div>
+            <div class="cal-day-name">水</div><div class="cal-day-name">木</div><div class="cal-day-name">金</div>
+            <div class="cal-day-name sat">土</div>
+          </div>
+          <div class="cal-grid" id="cal-rsv-end-days"></div>
+          <div class="selected-date-display" id="selected-rsv-end-date-display">希望返却日を選択してください</div>
         </div>
       </div>
       <div class="confirm-row" style="flex-direction:column;align-items:flex-start;gap:6px;">
@@ -655,7 +672,8 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
       <div class="success-subtitle">マイページで予約状況を確認できます。</div>
       <div class="success-detail">
         <div class="confirm-row"><span class="confirm-label">備品名</span><span class="confirm-value" id="rsv-success-name"></span></div>
-        <div class="confirm-row" style="border-bottom:none"><span class="confirm-label">希望開始日</span><span class="confirm-value" id="rsv-success-date" style="color:var(--cobalt)"></span></div>
+        <div class="confirm-row"><span class="confirm-label">希望開始日</span><span class="confirm-value" id="rsv-success-date" style="color:var(--cobalt)"></span></div>
+        <div class="confirm-row" style="border-bottom:none"><span class="confirm-label">希望返却日</span><span class="confirm-value" id="rsv-success-end-date" style="color:var(--cobalt)"></span></div>
       </div>
       <button class="primary-btn" onclick="showScreen('home');setNav('home')">ホームへ戻る</button>
     </div>
@@ -1179,12 +1197,55 @@ function completeExtend(){
     });
 }
 
-/* ── 予約カレンダー（F-17） ─────────────────────── */
+/* ── 予約カレンダー（F-17 / フェーズ4.5） ─────────────────────── */
+
+// 予約済み・貸出中の期間を取得してキャッシュ
+var rsvBlockedRanges = []; // [{start: Date, end: Date}, ...]
+
+function loadBlockedRanges(resourceId, callback){
+  rsvBlockedRanges = [];
+  var today = new Date(); today.setHours(0,0,0,0);
+  var promises = [];
+  // 貸出中の期間
+  promises.push(
+    sbFetch('loans?resource_id=eq.'+encodeURIComponent(resourceId)+'&status=eq.loaned&select=loaned_at,due_date')
+      .then(function(rows){
+        (rows||[]).forEach(function(r){
+          if(r.loaned_at && r.due_date){
+            var s=new Date(r.loaned_at);s.setHours(0,0,0,0);
+            var e=new Date(r.due_date);e.setHours(0,0,0,0);
+            rsvBlockedRanges.push({start:s,end:e});
+          }
+        });
+      }).catch(function(){})
+  );
+  // 予約済みの期間
+  promises.push(
+    sbFetch('reservations?resource_id=eq.'+encodeURIComponent(resourceId)+'&status=in.(pending,approved)&select=desired_start,desired_end')
+      .then(function(rows){
+        (rows||[]).forEach(function(r){
+          if(r.desired_start && r.desired_end){
+            var s=new Date(r.desired_start);s.setHours(0,0,0,0);
+            var e=new Date(r.desired_end);e.setHours(0,0,0,0);
+            rsvBlockedRanges.push({start:s,end:e});
+          }
+        });
+      }).catch(function(){})
+  );
+  Promise.all(promises).then(function(){ if(callback) callback(); });
+}
+
+function isDateBlocked(date){
+  for(var i=0;i<rsvBlockedRanges.length;i++){
+    var r=rsvBlockedRanges[i];
+    if(date>=r.start && date<=r.end) return true;
+  }
+  return false;
+}
 
 function renderCalendarRsv(){
   var y=S.rsvCalYear,m=S.rsvCalMonth;
   var today=new Date();today.setHours(0,0,0,0);
-  // 貸出中なら返却予定日翌日、そうでなければ今日が最小選択日
   var minDate = S.rsvMinDate || today;
   document.getElementById('cal-rsv-month-label').textContent=y+'年 '+(m+1)+'月';
   var firstDay=new Date(y,m,1).getDay();
@@ -1197,7 +1258,7 @@ function renderCalendarRsv(){
     var el=document.createElement('div');
     var thisDate=new Date(y,m,d);thisDate.setHours(0,0,0,0);
     el.className='cal-day';el.textContent=d;
-    if(thisDate<minDate){
+    if(thisDate<minDate || isDateBlocked(thisDate)){
       el.classList.add('disabled');
     } else {
       var dow=thisDate.getDay();
@@ -1209,24 +1270,92 @@ function renderCalendarRsv(){
     grid.appendChild(el);
   }
 }
+
+function renderCalendarRsvEnd(){
+  if(!S.selectedRsvDate) return;
+  var y=S.rsvEndCalYear,m=S.rsvEndCalMonth;
+  var today=new Date();today.setHours(0,0,0,0);
+  // 返却日の最小値：開始日の翌日
+  var minEnd=new Date(S.selectedRsvDate);minEnd.setDate(minEnd.getDate()+1);
+  // 返却日の最大値：開始日から30日後
+  var maxEnd=new Date(S.selectedRsvDate);maxEnd.setDate(maxEnd.getDate()+MAX_LOAN_DAYS);
+  document.getElementById('cal-rsv-end-month-label').textContent=y+'年 '+(m+1)+'月';
+  var firstDay=new Date(y,m,1).getDay();
+  var daysInMonth=new Date(y,m+1,0).getDate();
+  var grid=document.getElementById('cal-rsv-end-days');
+  if(!grid)return;
+  grid.innerHTML='';
+  for(var i=0;i<firstDay;i++){var emp=document.createElement('div');emp.className='cal-day empty';grid.appendChild(emp);}
+  for(var d=1;d<=daysInMonth;d++){
+    var el=document.createElement('div');
+    var thisDate=new Date(y,m,d);thisDate.setHours(0,0,0,0);
+    el.className='cal-day';el.textContent=d;
+    if(thisDate<minEnd || thisDate>maxEnd || isDateBlocked(thisDate)){
+      el.classList.add('disabled');
+    } else {
+      var dow=thisDate.getDay();
+      if(dow===0)el.classList.add('sun');if(dow===6)el.classList.add('sat');
+      if(S.selectedRsvEndDate&&S.selectedRsvEndDate.getTime()===thisDate.getTime())el.classList.add('selected');
+      (function(yy,mm,dd){el.onclick=function(){selectRsvEndDay(yy,mm,dd);};})(y,m,d);
+    }
+    grid.appendChild(el);
+  }
+}
+
 function changeCalMonthRsv(delta){
   S.rsvCalMonth+=delta;
   if(S.rsvCalMonth>11){S.rsvCalMonth=0;S.rsvCalYear++;}
   if(S.rsvCalMonth<0){S.rsvCalMonth=11;S.rsvCalYear--;}
-  // minDate月より前には戻れない
   var minDate=S.rsvMinDate||new Date();
   if(S.rsvCalYear<minDate.getFullYear()||(S.rsvCalYear===minDate.getFullYear()&&S.rsvCalMonth<minDate.getMonth())){
     S.rsvCalYear=minDate.getFullYear();S.rsvCalMonth=minDate.getMonth();
   }
   renderCalendarRsv();
 }
+
+function changeCalMonthRsvEnd(delta){
+  S.rsvEndCalMonth+=delta;
+  if(S.rsvEndCalMonth>11){S.rsvEndCalMonth=0;S.rsvEndCalYear++;}
+  if(S.rsvEndCalMonth<0){S.rsvEndCalMonth=11;S.rsvEndCalYear--;}
+  // 開始日の月より前には戻れない
+  if(S.selectedRsvDate){
+    var minEnd=new Date(S.selectedRsvDate);minEnd.setDate(minEnd.getDate()+1);
+    if(S.rsvEndCalYear<minEnd.getFullYear()||(S.rsvEndCalYear===minEnd.getFullYear()&&S.rsvEndCalMonth<minEnd.getMonth())){
+      S.rsvEndCalYear=minEnd.getFullYear();S.rsvEndCalMonth=minEnd.getMonth();
+    }
+  }
+  renderCalendarRsvEnd();
+}
+
 function selectRsvDay(y,m,d){
   S.selectedRsvDate=new Date(y,m,d);S.selectedRsvDate.setHours(0,0,0,0);
+  // 返却日をリセット
+  S.selectedRsvEndDate=null;
+  // 返却日カレンダーを開始日の翌日月から表示
+  var minEnd=new Date(S.selectedRsvDate);minEnd.setDate(minEnd.getDate()+1);
+  S.rsvEndCalYear=minEnd.getFullYear();S.rsvEndCalMonth=minEnd.getMonth();
   renderCalendarRsv();
   var disp=document.getElementById('selected-rsv-date-display');
   if(disp) disp.textContent='希望開始日: '+fmtD(y,m,d)+'（'+DOW[S.selectedRsvDate.getDay()]+'）';
+  // 返却日セクションを表示
+  var endSection=document.getElementById('rsv-end-section');
+  if(endSection) endSection.style.display='';
+  var endDisp=document.getElementById('selected-rsv-end-date-display');
+  if(endDisp) endDisp.textContent='希望返却日を選択してください';
+  renderCalendarRsvEnd();
+  // ボタンはまだ無効（返却日未選択）
   var btn=document.getElementById('reserve-submit-btn');
-  if(btn) btn.disabled=false;
+  if(btn) btn.disabled=true;
+}
+
+function selectRsvEndDay(y,m,d){
+  S.selectedRsvEndDate=new Date(y,m,d);S.selectedRsvEndDate.setHours(0,0,0,0);
+  renderCalendarRsvEnd();
+  var disp=document.getElementById('selected-rsv-end-date-display');
+  if(disp) disp.textContent='希望返却日: '+fmtD(y,m,d)+'（'+DOW[S.selectedRsvEndDate.getDay()]+'）';
+  // 両方選択されたらボタン有効化
+  var btn=document.getElementById('reserve-submit-btn');
+  if(btn) btn.disabled=!(S.selectedRsvDate && S.selectedRsvEndDate);
 }
 
 // 予約画面へ遷移
@@ -1294,16 +1423,24 @@ function goToReserveConfirm(){
   if(btn) btn.disabled=true;
   var note=document.getElementById('reserve-note-input');
   if(note) note.value='';
-  renderCalendarRsv();
+  // 返却日セクションをリセット・非表示
+  S.selectedRsvEndDate=null;
+  var endSection=document.getElementById('rsv-end-section');
+  if(endSection) endSection.style.display='none';
+  // 貸出中・予約済み期間を取得してからカレンダー描画
+  loadBlockedRanges(S.currentAsset, function(){
+    renderCalendarRsv();
+  });
   showScreen('reserve-confirm');
 }
 
 // 予約を確定する
 function completeReservation(){
-  if(!S.selectedRsvDate||!currentUser) return;
+  if(!S.selectedRsvDate||!S.selectedRsvEndDate||!currentUser) return;
   var btn=document.getElementById('reserve-submit-btn');
   btn.textContent='処理中...';btn.disabled=true;
   var startStr=fmtD(S.selectedRsvDate.getFullYear(),S.selectedRsvDate.getMonth(),S.selectedRsvDate.getDate());
+  var endStr=fmtD(S.selectedRsvEndDate.getFullYear(),S.selectedRsvEndDate.getMonth(),S.selectedRsvEndDate.getDate());
   var rsvId='RV'+Date.now();
   var note=(document.getElementById('reserve-note-input')||{}).value||'';
   sbInsert('reservations',{
@@ -1312,11 +1449,14 @@ function completeReservation(){
     user_email:currentUser.email,
     user_name:currentUser.name,
     desired_start:startStr,
+    desired_end:endStr,
     status:'approved',
     note:note.trim()||null
   }).then(function(){
     document.getElementById('rsv-success-name').textContent=S.currentItemName;
     document.getElementById('rsv-success-date').textContent=startStr+'（'+DOW[S.selectedRsvDate.getDay()]+'）';
+    var endEl=document.getElementById('rsv-success-end-date');
+    if(endEl) endEl.textContent=endStr+'（'+DOW[S.selectedRsvEndDate.getDay()]+'）';
     btn.textContent='📋 予約を申し込む';btn.disabled=false;
     loadMyReservations(currentUser.email);
     showScreen('reserve-success');setNav('home');
@@ -1362,7 +1502,7 @@ function renderMypageReservations(){
     var nameDiv=document.createElement('div');nameDiv.className='loan-name';
     nameDiv.textContent=(res.name||'（備品名不明）')+(res.number?' '+res.number:'');
     var metaDiv=document.createElement('div');metaDiv.className='loan-meta';
-    metaDiv.textContent='希望開始日: '+(rsv.desired_start||'—');
+    metaDiv.textContent='希望開始日: '+(rsv.desired_start||'—')+(rsv.desired_end?' ～ '+rsv.desired_end:'');
     infoDiv.appendChild(nameDiv);infoDiv.appendChild(metaDiv);
     var statusDiv=document.createElement('div');statusDiv.className='loan-status';
     var badge=document.createElement('span');badge.className='badge';
