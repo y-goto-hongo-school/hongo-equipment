@@ -347,7 +347,10 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
 .tutorial-step-title{font-size:13px;font-weight:700;color:var(--cobalt-dark);margin-bottom:3px;}
 .tutorial-step-desc{font-size:11px;color:var(--gray-400);line-height:1.6;}
 .tutorial-footer{padding:18px 20px 22px;}
-.tutorial-start-btn{width:100%;padding:13px;background:linear-gradient(135deg,var(--cobalt),var(--cobalt-mid));color:#fff;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(26,74,138,.32);transition:all .2s;}
+.tutorial-footer-row{display:flex;gap:10px;align-items:center;}
+.tutorial-back-btn{padding:13px 18px;background:#fff;color:var(--cobalt);border:1.5px solid var(--cobalt-light);border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;flex-shrink:0;}
+.tutorial-back-btn:hover{background:var(--cobalt-ghost);}
+.tutorial-start-btn{flex:1;padding:13px;background:linear-gradient(135deg,var(--cobalt),var(--cobalt-mid));color:#fff;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(26,74,138,.32);transition:all .2s;}
 .tutorial-start-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(26,74,138,.42);}
 .tutorial-skip{text-align:center;margin-top:10px;font-size:11px;color:var(--gray-400);cursor:pointer;padding:4px;}
 .tutorial-skip:hover{color:var(--cobalt);}
@@ -834,7 +837,10 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
     <div class="tutorial-dot-row" id="tutorial-dots"></div>
     <div id="tutorial-steps-container" class="tutorial-steps"></div>
     <div class="tutorial-footer">
-      <button class="tutorial-start-btn" id="tutorial-main-btn" onclick="tutorialNext()">はじめる →</button>
+      <div class="tutorial-footer-row">
+        <button class="tutorial-back-btn" id="tutorial-back-btn" onclick="tutorialBack()" style="display:none">‹ 戻る</button>
+        <button class="tutorial-start-btn" id="tutorial-main-btn" onclick="tutorialNext()">はじめる →</button>
+      </div>
       <div class="tutorial-skip" id="tutorial-skip-btn" onclick="closeTutorial()">スキップして使い始める</div>
     </div>
   </div>
@@ -2709,6 +2715,13 @@ function tutorialNext() {
   }
 }
 
+function tutorialBack() {
+  if (_tutorialStep > 0) {
+    _tutorialStep--;
+    _renderTutorialPage(_tutorialStep);
+  }
+}
+
 function _renderTutorialPage(idx) {
   var page  = TUTORIAL_PAGES[idx];
   var total = TUTORIAL_PAGES.length;
@@ -2716,6 +2729,7 @@ function _renderTutorialPage(idx) {
   var dotsEl    = document.getElementById('tutorial-dots');
   var mainBtn   = document.getElementById('tutorial-main-btn');
   var skipBtn   = document.getElementById('tutorial-skip-btn');
+  var backBtn   = document.getElementById('tutorial-back-btn');
   if (!container || !dotsEl || !mainBtn) return;
 
   // ドット
@@ -2749,7 +2763,10 @@ function _renderTutorialPage(idx) {
     container.appendChild(item);
   });
 
-  // ボタンラベル
+  // 戻るボタン：1ページ目は非表示
+  if (backBtn) backBtn.style.display = idx > 0 ? '' : 'none';
+
+  // 次へ／使い始めるボタン
   if (idx < total - 1) {
     mainBtn.textContent = '次へ →';
     if (skipBtn) skipBtn.style.display = 'block';
