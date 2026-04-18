@@ -34,7 +34,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
 .notif-btn:hover{background:rgba(255,255,255,.22);}
 .notif-badge{position:absolute;top:-3px;right:-3px;background:#e74c3c;color:#fff;font-size:9px;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid var(--cobalt-dark);}
 .notif-btn.hidden{display:none;}
-.user-info{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:32px;padding:5px 12px 5px 6px;cursor:pointer;transition:background .2s;position:relative;}
+.user-info{display:flex;align-items:center;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:50%;padding:4px;cursor:pointer;transition:background .2s;position:relative;}
 .user-info:hover{background:rgba(255,255,255,.22);}
 .user-avatar{width:28px;height:28px;background:#c8a84b;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--cobalt-dark);}
 .user-name{font-size:13px;font-weight:600;}
@@ -378,7 +378,6 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
     </div>
     <div class="user-info" id="user-info-btn" onclick="toggleUserDropdown(event)">
       <div class="user-avatar" id="header-avatar-display">?</div>
-      <span class="user-name" id="user-name-display"></span>
       <div class="user-dropdown" id="user-dropdown">
         <div class="user-dropdown-item" onclick="closeUserDropdown();showScreen('mypage');setNav('mypage')">👤 マイページ</div>
         <div class="user-dropdown-divider"></div>
@@ -419,20 +418,15 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
       </div>
       <div class="hero-hint">タップして詳細を確認 ›</div>
     </div>
-    <div class="action-grid" style="grid-template-columns:1fr 1fr 1fr;">
+    <div class="action-grid" style="grid-template-columns:1fr 1fr;">
       <div class="action-card primary" id="borrow-action" onclick="goBorrow()">
         <div class="action-icon">📦</div>
-        <div class="action-info"><div class="action-title">備品を借りる</div><div class="action-desc">カテゴリから選択</div></div>
+        <div class="action-info"><div class="action-title">借りる・予約する</div><div class="action-desc">カテゴリから選択</div></div>
         <div class="action-arrow">›</div>
       </div>
       <div class="action-card" onclick="showScreen('return-select');setNav('return')">
         <div class="action-icon">↩️</div>
         <div class="action-info"><div class="action-title">返却する</div><div class="action-desc">借りている備品を返す</div></div>
-        <div class="action-arrow">›</div>
-      </div>
-      <div class="action-card" onclick="goReserve()">
-        <div class="action-icon">📋</div>
-        <div class="action-info"><div class="action-title">予約する</div><div class="action-desc">使いたい日を押さえる</div></div>
         <div class="action-arrow">›</div>
       </div>
     </div>
@@ -761,8 +755,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
 
 <nav class="bottom-nav" style="display:none">
   <div class="nav-item active" id="nav-home" onclick="showScreen('home');setNav('home')"><span class="nav-icon">🏠</span><span class="nav-label">ホーム</span></div>
-  <div class="nav-item" id="nav-borrow" onclick="goBorrow();setNav('borrow')"><span class="nav-icon">📦</span><span class="nav-label">借りる</span></div>
-  <div class="nav-item" id="nav-reserve" onclick="goReserve();setNav('reserve')"><span class="nav-icon">📋</span><span class="nav-label">予約</span></div>
+  <div class="nav-item" id="nav-borrow" onclick="goBorrow();setNav('borrow')"><span class="nav-icon">📦</span><span class="nav-label">借りる・予約</span></div>
   <div class="nav-item" id="nav-return" onclick="showScreen('return-select');setNav('return')"><span class="nav-icon">↩️</span><span class="nav-label">返却</span></div>
   <div class="nav-item" id="nav-mypage" onclick="showScreen('mypage');setNav('mypage')"><span class="nav-icon">👤</span><span class="nav-label">マイページ</span></div>
 </nav>
@@ -934,10 +927,24 @@ function showScreen(name){
     renderCalendar();
   }
 }
-function setNav(name){document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));const m={home:'nav-home',borrow:'nav-borrow',reserve:'nav-reserve',return:'nav-return',mypage:'nav-mypage'};if(m[name])document.getElementById(m[name]).classList.add('active');}
+function setNav(name){
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const m={home:'nav-home',borrow:'nav-borrow',reserve:'nav-borrow',return:'nav-return',mypage:'nav-mypage'};
+  if(m[name])document.getElementById(m[name]).classList.add('active');
+  // ホーム画面ではナビを常に固定表示
+  var nav=document.querySelector('nav.bottom-nav');
+  if(nav){
+    if(name==='home'){
+      nav.classList.remove('hide');
+      nav.dataset.locked='1';
+    } else {
+      nav.dataset.locked='0';
+    }
+  }
+}
 function jumpToMyLoans(){showScreen('mypage');setNav('mypage');setTimeout(()=>document.getElementById('mypage-loans').scrollIntoView({behavior:'smooth'}),120);}
 function goBorrow(){if(S.hasOverdue||S.hasLoanLimit)return;S._reserveMode=false;showScreen('categories');setNav('borrow');}
-function goReserve(){S._reserveMode=true;showScreen('categories');setNav('reserve');}
+function goReserve(){S._reserveMode=true;showScreen('categories');setNav('borrow');}
 function showItems(name){document.getElementById('items-title').textContent=name;document.getElementById('items-page-title').textContent=name;showScreen('items');}
 function activateTab(el){el.closest('.sub-category-tabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');}
 
@@ -2843,8 +2850,8 @@ function getResourceIcon(res) {
         var delta = currentY - lastScrollY;
 
         if (delta > NAV_THRESHOLD) {
-          // 下スクロール → 隠す
-          nav.classList.add('hide');
+          // 下スクロール → 隠す（ホーム固定時は隠さない）
+          if(nav.dataset.locked !== '1') nav.classList.add('hide');
         } else if (delta < -NAV_THRESHOLD) {
           // 上スクロール → 見せる
           nav.classList.remove('hide');
