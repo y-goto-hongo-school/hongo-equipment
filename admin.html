@@ -519,13 +519,14 @@ tr:hover td{background:var(--cobalt-ghost);}
               <th>備品</th>
               <th>申請者</th>
               <th>希望開始日</th>
+              <th>希望返却日</th>
               <th>申請日</th>
               <th>状態</th>
               <th>操作</th>
             </tr>
           </thead>
           <tbody id="reservations-tbody">
-            <tr><td colspan="6"><div class="loading"><div class="spinner"></div>読み込み中</div></td></tr>
+            <tr><td colspan="7"><div class="loading"><div class="spinner"></div>読み込み中</div></td></tr>
           </tbody>
         </table>
       </div>
@@ -1480,9 +1481,9 @@ var allReservationsAdmin = [];
 
 function loadReservationsAdmin() {
   var tbody = document.getElementById('reservations-tbody');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="6"><div class="loading"><div class="spinner"></div>読み込み中</div></td></tr>';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="7"><div class="loading"><div class="spinner"></div>読み込み中</div></td></tr>';
 
-  sbFetch('reservations?order=created_at.desc&select=reservation_id,resource_id,user_email,user_name,desired_start,status,note,created_at,resources(name,number)')
+  sbFetch('reservations?order=created_at.desc&select=reservation_id,resource_id,user_email,user_name,desired_start,desired_end,status,note,created_at,resources(name,number)')
     .then(function(data) {
       allReservationsAdmin = data || [];
       // 申請中バッジ更新
@@ -1495,7 +1496,7 @@ function loadReservationsAdmin() {
     })
     .catch(function(err) {
       console.error('予約取得エラー:', err);
-      if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--danger);padding:24px">データ取得に失敗しました</td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger);padding:24px">データ取得に失敗しました</td></tr>';
     });
 }
 
@@ -1520,7 +1521,7 @@ function renderReservationsAdmin(data) {
   tbody.innerHTML = '';
   if (!data || data.length === 0) {
     var tr = document.createElement('tr');
-    var td = document.createElement('td'); td.colSpan = 6; td.className = 'empty-row';
+    var td = document.createElement('td'); td.colSpan = 7; td.className = 'empty-row';;
     td.textContent = '該当する予約がありません';
     tr.appendChild(td); tbody.appendChild(tr); return;
   }
@@ -1551,6 +1552,10 @@ function renderReservationsAdmin(data) {
     // 希望開始日
     var tdStart = document.createElement('td');
     tdStart.textContent = rsv.desired_start || '—';
+
+    // 希望返却日
+    var tdEnd = document.createElement('td');
+    tdEnd.textContent = rsv.desired_end || '—';
 
     // 申請日
     var tdCreated = document.createElement('td');
@@ -1596,6 +1601,7 @@ function renderReservationsAdmin(data) {
     tr.appendChild(tdRes);
     tr.appendChild(tdUser);
     tr.appendChild(tdStart);
+    tr.appendChild(tdEnd);
     tr.appendChild(tdCreated);
     tr.appendChild(tdStatus);
     tr.appendChild(tdAction);
@@ -1662,7 +1668,7 @@ function renderLoans(data) {
   if (!data || data.length === 0) {
     var tr = document.createElement('tr');
     var td = document.createElement('td');
-    td.colSpan = 6; td.className = 'empty-row';
+    td.colSpan = 7; td.className = 'empty-row';;
     td.textContent = '該当する貸出がありません';
     tr.appendChild(td);
     tbody.appendChild(tr);
