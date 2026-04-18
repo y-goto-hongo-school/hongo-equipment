@@ -783,8 +783,8 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
       <div class="help-item">
         <span class="help-item-icon">📦</span>
         <div class="help-item-text">
-          <div class="help-item-title">借りる</div>
-          <div class="help-item-desc">ホーム「備品を借りる」ボタン、または下タブ「借りる」からカテゴリ選択 → 備品選択 → 返却日設定</div>
+          <div class="help-item-title">借りる・予約する</div>
+          <div class="help-item-desc">ホーム「借りる・予約する」ボタン、または下タブ「借りる・予約」からカテゴリ選択 → 備品選択 → 借りる or 予約するを選択。予約は希望開始日と返却日を指定してください</div>
         </div>
       </div>
       <div class="help-item">
@@ -798,21 +798,21 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
         <span class="help-item-icon">🔄</span>
         <div class="help-item-text">
           <div class="help-item-title">期限変更</div>
-          <div class="help-item-desc">ホーム「現在の貸出」の備品をタップ → 備品詳細 →「返却期限を変更する」（延長・短縮どちらも可）</div>
+          <div class="help-item-desc">ホーム「現在の貸出」の備品をタップ → 備品詳細 →「返却期限を変更する」（延長・短縮どちらも可。予約が入っていない場合のみ）</div>
         </div>
       </div>
       <div class="help-item">
         <span class="help-item-icon">👤</span>
         <div class="help-item-text">
-          <div class="help-item-title">マイページ</div>
-          <div class="help-item-desc">ヘッダー右上の名前をタップ →「マイページ」。貸出履歴の確認・「また借りる」での再貸出・パスワード変更</div>
+          <div class="help-item-title">マイページ・ログアウト</div>
+          <div class="help-item-desc">ヘッダー右上のアイコンをタップ →「マイページ」または「ログアウト」。マイページでは貸出履歴・予約状況の確認・「また借りる」での再貸出・パスワード変更ができます。共有端末利用後は必ずログアウトを</div>
         </div>
       </div>
       <div class="help-item">
-        <span class="help-item-icon">🚪</span>
+        <span class="help-item-icon">📋</span>
         <div class="help-item-text">
-          <div class="help-item-title">ログアウト</div>
-          <div class="help-item-desc">ヘッダー右上の名前をタップ →「ログアウト」。共有端末を使用後は必ずログアウトしてください</div>
+          <div class="help-item-title">予約のキャンセル</div>
+          <div class="help-item-desc">マイページの「予約中」一覧 →「取消」ボタンで予約をキャンセルできます</div>
         </div>
       </div>
     </div>
@@ -2658,8 +2658,8 @@ var TUTORIAL_PAGES = [
   {
     title: 'ようこそ！備品管理システムへ',
     steps: [
-      { num:'1', title:'備品を借りる',
-        desc:'①ホーム画面の「備品を借りる」ボタン、または②画面下の「借りる」タブ、どちらからでも借りられます。カテゴリを選んで備品を選択し、返却日を設定してください。' },
+      { num:'1', title:'備品を借りる・予約する',
+        desc:'①ホーム画面の「借りる・予約する」ボタン、または②画面下の「借りる・予約」タブからカテゴリを選択。備品を選んで「借りる」か「予約する」を選択できます。予約は希望開始日と返却日を指定してください。' },
       { num:'2', title:'返却する',
         desc:'返却方法は3通りあります。①ホーム「現在の貸出」の「返却」ボタン、②ホームの「返却する」ボタン、③画面下の「返却」タブ。いずれもコメントを添えて返却できます。' },
       { num:'3', title:'返却期限の変更',
@@ -2670,11 +2670,11 @@ var TUTORIAL_PAGES = [
     title: 'マイページと便利な機能',
     steps: [
       { num:'4', title:'マイページ・ログアウト',
-        desc:'ヘッダー右上の名前をタップするとメニューが開きます。「マイページ」では貸出履歴の確認や「また借りる」での再貸出ができます。「ログアウト」は共有端末利用後に必ず行ってください。' },
-      { num:'5', title:'右下の？ボタン',
-        desc:'いつでもこの使い方ガイドを表示できます。チュートリアルの再表示もここから行えます。' },
-      { num:'6', title:'パスワード変更',
-        desc:'マイページ右上の「🔑 PW変更」ボタンからいつでも変更できます（8文字以上）。' },
+        desc:'ヘッダー右上のアイコンをタップするとメニューが開きます。「マイページ」では貸出履歴・予約状況の確認や「また借りる」での再貸出ができます。「ログアウト」は共有端末利用後に必ず行ってください。' },
+      { num:'5', title:'予約のキャンセル',
+        desc:'マイページの「予約中」一覧から「取消」ボタンで予約をキャンセルできます。' },
+      { num:'6', title:'右下の？ボタン',
+        desc:'いつでもこの使い方ガイドを表示できます。チュートリアルの再表示もここから行えます。パスワード変更はマイページ右上の「🔑 PW変更」から（8文字以上）。' },
     ]
   }
 ];
