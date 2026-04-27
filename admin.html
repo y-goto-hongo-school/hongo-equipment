@@ -179,7 +179,7 @@ tr:hover td{background:var(--cobalt-ghost);}
       </div>
     </div>
     <div class="header-title">
-      <span class="school">本郷中学・高等学校</span>
+      <span class="school">本郷中学校・高等学校</span>
       <span class="system">備品管理システム<span class="admin-badge">ADMIN</span></span>
     </div>
   </div>
@@ -568,7 +568,7 @@ tr:hover td{background:var(--cobalt-ghost);}
       </div>
       <div class="form-group">
         <label class="form-label">中分類</label>
-        <select class="form-select" id="rm-category">
+        <select class="form-select" id="rm-category" onchange="onChildCategoryChange()">
           <option value="">（大分類を先に選択）</option>
         </select>
       </div>
@@ -1055,9 +1055,15 @@ function loadDashboard() {
     if (subEl && discarded > 0) subEl.textContent = '登録備品（廃棄済 ' + discarded + '件 除外）';
   }).catch(function() { setText('stat-total-resources', 'ERR'); });
 
-  // 延滞統計
+  // 延滞統計：
+  // サーバ側で due_date < 今日 で大まかに絞り、クライアント側で daysFromToday() による
+  // 確実な日付比較で最終判定する（保存形式のばらつき・タイムゾーン誤差への保険）
   var today = toDateStr(new Date());
-  sbFetch('loans?status=eq.loaned&due_date=lt.' + today + '&select=loan_id,user_email,user_name,due_date,resources(name)').then(function(data) {
+  sbFetch('loans?status=eq.loaned&due_date=lt.' + today + '&select=loan_id,user_email,user_name,due_date,resources(name)').then(function(rows) {
+    // クライアント側で確実に「期限超過」のものだけに絞る
+    var data = (rows || []).filter(function(loan) {
+      return loan.due_date && daysFromToday(loan.due_date) < 0;
+    });
     var count = data.length;
     setText('stat-overdue', count);
 
@@ -1648,7 +1654,7 @@ function filterLoans() {
   var today = toDateStr(new Date());
   var filtered = allLoans.filter(function(loan) {
     // 延滞判定
-    var isOverdue = loan.status === 'loaned' && loan.due_date && loan.due_date < today;
+    var isOverdue = loan.status === "loaned" && loan.due_date && daysFromToday(loan.due_date) < 0;
     var displayStatus = isOverdue ? 'overdue' : loan.status;
     if (status && status !== displayStatus) return false;
     if (q) {
@@ -1674,9 +1680,8 @@ function renderLoans(data) {
     tbody.appendChild(tr);
     return;
   }
-  var today = toDateStr(new Date());
   data.forEach(function(loan) {
-    var isOverdue = loan.status === 'loaned' && loan.due_date && loan.due_date < today;
+    var isOverdue = loan.status === "loaned" && loan.due_date && daysFromToday(loan.due_date) < 0;
     var tr = document.createElement('tr');
 
     var tdName = document.createElement('td');
@@ -1696,8 +1701,24 @@ function renderLoans(data) {
     tdLoaned.textContent = fmtDate(loan.loaned_at);
 
     var tdDue = document.createElement('td');
-    tdDue.textContent = loan.due_date ? loan.due_date.slice(0, 10) : '—';
-    if (isOverdue) tdDue.style.color = 'var(--danger)';
+    tdDue.textContent = fmtDate(loan.due_date);
+    if (loan.status === 'loaned' && loan.due_date) {
+      var diff = daysFromToday(loan.due_date);
+      var sub = document.createElement('span');
+      sub.style.cssText = 'display:block;font-size:11px;font-weight:400;margin-top:2px;';
+      if (diff < 0) {
+        sub.textContent = '⚠️ ' + Math.abs(diff) + '日超過';
+        sub.style.color = 'var(--danger)';
+        tdDue.style.color = 'var(--danger)';
+      } else if (diff === 0) {
+        sub.textContent = '本日が期限';
+        sub.style.color = 'var(--warning)';
+      } else {
+        sub.textContent = 'あと' + diff + '日';
+        sub.style.color = 'var(--gray-400)';
+      }
+      tdDue.appendChild(sub);
+    }
 
     var tdStatus = document.createElement('td');
     var badge = document.createElement('span');
@@ -1746,7 +1767,7 @@ function showForceReturnModal(loan) {
     var lines = [
       '備品：' + (loan.resources ? loan.resources.name : '不明'),
       '借用者：' + (loan.user_name || loan.user_email || '不明'),
-      '返却期限：' + (loan.due_date ? loan.due_date.slice(0, 10) : '—')
+      '返却期限：' + fmtDate(loan.due_date)
     ];
     lines.forEach(function(line) {
       var p = document.createElement('div');
@@ -1936,12 +1957,32 @@ function renderResources(data) {
 }
 
 function setResourceStatus(resourceId, status) {
+  // スクロール位置を保存（再描画後も同じ位置を維持するため）
+  var scrollY = window.scrollY || window.pageYOffset || 0;
   sbPatch('resources?resource_id=eq.' + encodeURIComponent(resourceId), { status: status })
     .then(function() {
       showToast('✅ ステータスを変更しました', 'success');
-      allResources = [];
-      loadResources();
+      // ローカルキャッシュを直接更新して、その場の行だけ再描画する
+      // （loadResources による全件再取得＆ロード表示はスクロール位置を破壊するため避ける）
+      var hit = allResources.filter(function(r){ return r.resource_id === resourceId; })[0];
+      if (hit) {
+        hit.status = status;
+        // 現在のフィルタ条件で再描画
+        if (typeof filterResources === 'function') {
+          filterResources();
+        } else {
+          renderResources(allResources);
+        }
+      } else {
+        // 念のためのフォールバック
+        loadResources();
+      }
+      // ダッシュボード側の数字も更新したいが、こちらは別タブなのでスクロールに影響しない
       loadDashboard();
+      // スクロール位置を復元（描画後）
+      requestAnimationFrame(function(){
+        window.scrollTo({ top: scrollY, left: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+      });
     })
     .catch(function(err) {
       console.error('ステータス変更エラー:', err);
@@ -2070,25 +2111,63 @@ function _openResourceModal(resource) {
     if (resource && resource.department_id) deptEl.value = resource.department_id;
   }
 
-  // ⑰ 同カテゴリの既存備品一覧パネルを更新（大分類変更時にも更新）
-  _updateSiblingPanel(resource ? resource.category_id : null);
+  // ⑰ 同カテゴリの既存備品一覧パネル
+  //   - 編集時：その備品の中分類で表示
+  //   - 新規追加時：まだカテゴリ未選択なので非表示。大分類/中分類が選ばれたらonChangeで表示される
+  if (resource && resource.category_id) {
+    var thisCatForPanel = allCategories.filter(function(c){ return c.category_id === resource.category_id; })[0];
+    var parentForPanel = thisCatForPanel ? (thisCatForPanel.parent_id || null) : null;
+    _updateSiblingPanel(parentForPanel, resource.category_id);
+  } else {
+    _updateSiblingPanel(null, null);
+  }
 
   document.getElementById('modal-resource').style.display = 'flex';
 }
 
 // ⑰ 同カテゴリ既存備品パネル
-function _updateSiblingPanel(categoryId) {
+//   parentId=大分類ID（任意）、childId=中分類ID（任意）。両方指定可。
+//   - childId が指定されていればその中分類配下を、
+//   - childId が無く parentId のみなら、その大分類配下のすべての中分類分を表示する。
+function _updateSiblingPanel(parentId, childId) {
   var panel = document.getElementById('rm-sibling-panel');
   if (!panel) return;
-  if (!categoryId) { panel.style.display = 'none'; return; }
+  if (!parentId && !childId) { panel.style.display = 'none'; return; }
+
+  // childId 指定時はそれだけ。未指定なら parentId 配下の中分類すべてを対象に。
+  var targetCategoryIds;
+  var headerLabel;
+  if (childId) {
+    targetCategoryIds = [childId];
+    var childCat = allCategories.filter(function(c){ return c.category_id === childId; })[0];
+    headerLabel = '📋 同カテゴリの登録済み備品' + (childCat ? '（' + childCat.name + '）' : '');
+  } else {
+    var children = allCategories.filter(function(c){ return c.parent_id === parentId; });
+    targetCategoryIds = children.map(function(c){ return c.category_id; });
+    var parentCat = allCategories.filter(function(c){ return c.category_id === parentId; })[0];
+    headerLabel = '📋 同じ大分類の登録済み備品' + (parentCat ? '（' + parentCat.name + '）' : '') + ' — 中分類を選ぶと絞り込まれます';
+  }
+
+  if (targetCategoryIds.length === 0) { panel.style.display = 'none'; return; }
+
   var siblings = allResources.filter(function(r) {
-    return r.category_id === categoryId && r.status !== 'discarded';
+    return r.category_id && targetCategoryIds.indexOf(r.category_id) !== -1 && r.status !== 'discarded';
   });
   if (siblings.length === 0) { panel.style.display = 'none'; return; }
+
+  // パネル本体を組み立て
   panel.style.display = '';
-  var list = document.getElementById('rm-sibling-list');
-  if (!list) return;
-  list.innerHTML = '';
+  panel.innerHTML = '';
+  var head = document.createElement('div');
+  head.style.cssText = 'font-size:11px;font-weight:700;color:var(--cobalt);margin-bottom:6px;';
+  head.textContent = headerLabel;
+  panel.appendChild(head);
+  var list = document.createElement('div');
+  list.id = 'rm-sibling-list';
+  panel.appendChild(list);
+
+  // 同じ備品名でまとめてカウントすると参考になりやすい
+  // → 行ごとに「備品名 ／ 管理番号」を出す
   siblings.forEach(function(r) {
     var li = document.createElement('div');
     li.style.cssText = 'font-size:12px;padding:3px 0;border-bottom:1px solid var(--gray-100);display:flex;gap:6px;';
@@ -2106,11 +2185,18 @@ function _updateSiblingPanel(categoryId) {
   });
 }
 
-// 大分類変更時に中分類を更新
+// 大分類変更時：中分類セレクトを差し替え、パネルは「大分類モード」で更新
 function onParentCategoryChange() {
   var parentId = document.getElementById('rm-parent-category').value;
   populateChildCategories(parentId, null);
-  _updateSiblingPanel(null); // 大分類変更時はリセット
+  _updateSiblingPanel(parentId || null, null);
+}
+
+// 中分類変更時：パネルを「中分類モード」で更新
+function onChildCategoryChange() {
+  var parentId = document.getElementById('rm-parent-category').value || null;
+  var childId = document.getElementById('rm-category').value || null;
+  _updateSiblingPanel(parentId, childId);
 }
 function populateChildCategories(parentId, selectedChildId) {
   var catEl = document.getElementById('rm-category');
@@ -2136,12 +2222,15 @@ function submitResource() {
   var inputNumber = document.getElementById('rm-number').value.trim() || null;
 
   // 管理番号の重複チェック（新規追加時のみ）
+  // ※ ルール：管理番号は「同じ備品名」同士でのみ重複NG。
+  //   違う備品名であれば、同じカテゴリでも同じ管理番号を付けてよい
+  //   （例：Chromebook の No.01 と 携帯電話 の No.01 はOK）。
   if (!editingResourceId && inputNumber) {
     var duplicate = allResources.filter(function(r) {
-      return r.number && r.number === inputNumber;
+      return r.number && r.number === inputNumber && r.name === name;
     })[0];
     if (duplicate) {
-      showToast('⚠️ 管理番号「' + inputNumber + '」は既に登録されています（' + duplicate.name + '）', 'error');
+      showToast('⚠️ 管理番号「' + inputNumber + '」は同じ備品名「' + name + '」で既に登録されています', 'error');
       return;
     }
   }
@@ -2945,20 +3034,41 @@ function resolveComment() {
 // ═══════════════════════════════════════════════
 // ユーティリティ
 // ═══════════════════════════════════════════════
+// dateStr を Date に変換するだけ。タイムゾーン変換は不要：
+// new Date(...) はブラウザのローカルタイムゾーンで .getDate() 等を返すので、
+// ブラウザが JST 環境なら自然に JST の日付が得られる。
+// ※date 型のみの値（"YYYY-MM-DD"）が来た場合はローカル0時として扱う。
 function toJST(dateStr) {
   if (!dateStr) return null;
-  var d = new Date(dateStr);
-  return new Date(d.getTime() + 9 * 60 * 60 * 1000);
+  // "YYYY-MM-DD" 形式（date型）の場合はローカル時刻の0時として解釈する
+  // （new Date("2026-04-28") は UTC 0時として解釈されるため明示的にローカル化）
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    var parts = dateStr.split('-');
+    return new Date(parseInt(parts[0],10), parseInt(parts[1],10)-1, parseInt(parts[2],10));
+  }
+  return new Date(dateStr);
 }
 
 function fmtDate(dateStr) {
   if (!dateStr) return '—';
   var d = toJST(dateStr);
+  if (!d || isNaN(d.getTime())) return '—';
   return d.getFullYear() + '/' + p(d.getMonth() + 1) + '/' + p(d.getDate());
 }
 
 function toDateStr(date) {
   return date.getFullYear() + '-' + p(date.getMonth() + 1) + '-' + p(date.getDate());
+}
+
+// due_date（"YYYY-MM-DD" or timestamp 文字列）が今日から何日後か。
+// 返り値: 正=未来、0=今日、負=過去（=延滞日数）
+function daysFromToday(dateStr) {
+  if (!dateStr) return 0;
+  var d = toJST(dateStr);
+  if (!d || isNaN(d.getTime())) return 0;
+  d.setHours(0,0,0,0);
+  var today = new Date(); today.setHours(0,0,0,0);
+  return Math.round((d.getTime() - today.getTime()) / (24*60*60*1000));
 }
 
 function p(n) { return String(n).padStart(2, '0'); }
