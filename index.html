@@ -316,19 +316,20 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
 .fab-btn{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--cobalt),var(--cobalt-mid));color:#fff;border:none;font-size:20px;cursor:pointer;box-shadow:0 4px 18px rgba(26,74,138,.4);display:flex;align-items:center;justify-content:center;transition:transform .2s,box-shadow .2s;font-family:inherit;}
 .fab-btn:hover{transform:scale(1.1);box-shadow:0 6px 24px rgba(26,74,138,.55);}
 .fab-btn.active{background:linear-gradient(135deg,#2c3347,var(--cobalt-dark));}
-.help-drawer{position:fixed;bottom:140px;right:16px;width:min(320px,calc(100vw - 32px));background:#fff;border-radius:16px;box-shadow:0 8px 40px rgba(26,74,138,.22),0 2px 8px rgba(0,0,0,.06);z-index:200;transform:translateY(20px) scale(.96);opacity:0;pointer-events:none;transition:all .25s cubic-bezier(.34,1.56,.64,1);border:1.5px solid var(--cobalt-pale);display:none;}
+.help-drawer{position:fixed;bottom:140px;right:16px;width:min(320px,calc(100vw - 32px));max-height:calc(100vh - 160px);display:flex;flex-direction:column;background:#fff;border-radius:16px;box-shadow:0 8px 40px rgba(26,74,138,.22),0 2px 8px rgba(0,0,0,.06);z-index:200;transform:translateY(20px) scale(.96);opacity:0;pointer-events:none;transition:all .25s cubic-bezier(.34,1.56,.64,1);border:1.5px solid var(--cobalt-pale);}
+.help-drawer:not(.open){display:none;}
 .help-drawer.open{transform:translateY(0) scale(1);opacity:1;pointer-events:all;}
-.help-drawer-header{background:linear-gradient(135deg,var(--cobalt-dark),var(--cobalt-mid));padding:16px 18px;border-radius:14px 14px 0 0;color:#fff;}
+.help-drawer-header{background:linear-gradient(135deg,var(--cobalt-dark),var(--cobalt-mid));padding:16px 18px;border-radius:14px 14px 0 0;color:#fff;flex-shrink:0;}
 .help-drawer-title{font-size:14px;font-weight:700;margin-bottom:2px;}
 .help-drawer-sub{font-size:11px;opacity:.7;}
-.help-drawer-body{padding:14px;}
+.help-drawer-body{padding:14px;overflow-y:auto;flex:1 1 auto;-webkit-overflow-scrolling:touch;}
 .help-item{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--gray-100);}
 .help-item:last-child{border-bottom:none;}
 .help-item-icon{font-size:18px;flex-shrink:0;margin-top:1px;}
 .help-item-text{flex:1;}
 .help-item-title{font-size:12px;font-weight:700;color:var(--cobalt-dark);margin-bottom:2px;}
 .help-item-desc{font-size:11px;color:var(--gray-400);line-height:1.55;}
-.help-drawer-footer{padding:10px 14px 14px;}
+.help-drawer-footer{padding:10px 14px 14px;flex-shrink:0;}
 .help-replay-btn{width:100%;padding:9px;background:var(--cobalt-ghost);color:var(--cobalt);border:1.5px solid var(--cobalt-pale);border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;}
 .help-replay-btn:hover{background:var(--cobalt-pale);}
 
@@ -369,7 +370,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
       </div>
     </div>
     <div class="header-title">
-      <span class="school">本郷中学・高等学校</span>
+      <span class="school">本郷中学校・高等学校</span>
       <span class="system">備品管理システム</span>
     </div>
   </div>
@@ -832,7 +833,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
     <div class="tutorial-header">
       <div class="tutorial-logo">📦</div>
       <div class="tutorial-header-title">備品管理システムへようこそ</div>
-      <div class="tutorial-header-sub">本郷中学・高等学校　SYS-003</div>
+      <div class="tutorial-header-sub">本郷中学校・高等学校　SYS-003</div>
     </div>
     <div class="tutorial-dot-row" id="tutorial-dots"></div>
     <div id="tutorial-steps-container" class="tutorial-steps"></div>
@@ -871,6 +872,8 @@ function toJST(date){
 })();
 function fmtDT(d){return`${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;}
 function fmtD(y,m,d){return`${y}/${p(m+1)}/${p(d)}`;}
+// DBへの保存用：date型カラム向けの ISO 形式（YYYY-MM-DD）
+function fmtDateISO(y,m,d){return`${y}-${p(m+1)}-${p(d)}`;}
 function p(n){return String(n).padStart(2,'0');}
 function updateOverdueUI(){
   document.getElementById('overdue-banner').classList.toggle('show',S.hasOverdue);
@@ -1098,6 +1101,7 @@ function completeBorrow(){
   btn.disabled=true;
 
   var dueStr=fmtD(due.getFullYear(),due.getMonth(),due.getDate());
+  var dueISO=fmtDateISO(due.getFullYear(),due.getMonth(),due.getDate());
   var loanId='L'+Date.now();
 
   // ✅ 認証トークン付きsbInsert/sbPatchで書き込み
@@ -1107,7 +1111,7 @@ function completeBorrow(){
     user_email:currentUser.email,
     user_name:currentUser.name,
     loaned_at:toJST(new Date()),
-    due_date:dueStr,
+    due_date:dueISO,
     status:'loaned'
   })
   .then(function(){
@@ -1180,7 +1184,7 @@ function completeExtend(){
   var btn=document.getElementById('extend-submit-btn');
   btn.textContent='処理中...'; btn.disabled=true;
 
-  var dueDateStr=fmtD(due.getFullYear(),due.getMonth(),due.getDate());
+  var dueDateStr=fmtDateISO(due.getFullYear(),due.getMonth(),due.getDate());
   sbPatch('loans?loan_id=eq.'+encodeURIComponent(S.currentLoanId), {due_date:dueDateStr})
     .then(function(){
       // キャッシュも更新
@@ -1280,6 +1284,26 @@ function renderCalendarRsvEnd(){
   var minEnd=new Date(S.selectedRsvDate);minEnd.setDate(minEnd.getDate()+1);
   // 返却日の最大値：開始日から30日後
   var maxEnd=new Date(S.selectedRsvDate);maxEnd.setDate(maxEnd.getDate()+MAX_LOAN_DAYS);
+
+  // ── 項目8: 開始日から見て「最初にぶつかる他予約・貸出」の直前までしか選ばせない ──
+  // 開始日以降にある blocked range の中で start が最も早いものを探し、
+  // その start の前日を「実質的な maxEnd」として上書き。
+  var earliestBlockStart=null;
+  var startMs=S.selectedRsvDate.getTime();
+  for(var i=0;i<rsvBlockedRanges.length;i++){
+    var r=rsvBlockedRanges[i];
+    if(r.start.getTime() > startMs){
+      if(!earliestBlockStart || r.start.getTime() < earliestBlockStart.getTime()){
+        earliestBlockStart = r.start;
+      }
+    }
+  }
+  if(earliestBlockStart){
+    // ブロック開始日の前日を上限に
+    var hardCap=new Date(earliestBlockStart);hardCap.setDate(hardCap.getDate()-1);
+    if(hardCap.getTime() < maxEnd.getTime()) maxEnd = hardCap;
+  }
+
   document.getElementById('cal-rsv-end-month-label').textContent=y+'年 '+(m+1)+'月';
   var firstDay=new Date(y,m,1).getDay();
   var daysInMonth=new Date(y,m+1,0).getDate();
@@ -1438,10 +1462,25 @@ function goToReserveConfirm(){
 // 予約を確定する
 function completeReservation(){
   if(!S.selectedRsvDate||!S.selectedRsvEndDate||!currentUser) return;
+
+  // ── 最終チェック：希望開始日〜希望返却日の間に他人の予約・貸出が挟まっていないか ──
+  // カレンダー描画後にDBが更新された場合への保険（クライアント側の二段防御）
+  if(rangeOverlapsBlocked(S.selectedRsvDate, S.selectedRsvEndDate)){
+    alert('選択した期間に他の貸出・予約と重なる日程が含まれています。\nカレンダーを再読み込みして、期間を選び直してください。');
+    // カレンダーを再読み込みして表示を最新化
+    loadBlockedRanges(S.currentAsset, function(){
+      renderCalendarRsv();
+      renderCalendarRsvEnd();
+    });
+    return;
+  }
+
   var btn=document.getElementById('reserve-submit-btn');
   btn.textContent='処理中...';btn.disabled=true;
   var startStr=fmtD(S.selectedRsvDate.getFullYear(),S.selectedRsvDate.getMonth(),S.selectedRsvDate.getDate());
   var endStr=fmtD(S.selectedRsvEndDate.getFullYear(),S.selectedRsvEndDate.getMonth(),S.selectedRsvEndDate.getDate());
+  var startISO=fmtDateISO(S.selectedRsvDate.getFullYear(),S.selectedRsvDate.getMonth(),S.selectedRsvDate.getDate());
+  var endISO=fmtDateISO(S.selectedRsvEndDate.getFullYear(),S.selectedRsvEndDate.getMonth(),S.selectedRsvEndDate.getDate());
   var rsvId='RV'+Date.now();
   var note=(document.getElementById('reserve-note-input')||{}).value||'';
   sbInsert('reservations',{
@@ -1449,8 +1488,8 @@ function completeReservation(){
     resource_id:S.currentAsset,
     user_email:currentUser.email,
     user_name:currentUser.name,
-    desired_start:startStr,
-    desired_end:endStr,
+    desired_start:startISO,
+    desired_end:endISO,
     status:'approved',
     note:note.trim()||null
   }).then(function(){
@@ -1466,6 +1505,21 @@ function completeReservation(){
     alert('予約に失敗しました。再度お試しください。\n'+err.message);
     btn.textContent='📋 予約を申し込む';btn.disabled=false;
   });
+}
+
+// 指定区間 [start, end] が rsvBlockedRanges のどれかと1日でも重なるか
+function rangeOverlapsBlocked(start, end){
+  if(!start || !end) return false;
+  var s=new Date(start);s.setHours(0,0,0,0);
+  var e=new Date(end);e.setHours(0,0,0,0);
+  for(var i=0;i<rsvBlockedRanges.length;i++){
+    var r=rsvBlockedRanges[i];
+    // [s,e] と [r.start,r.end] が1日でも重なる ⇔ s<=r.end かつ r.start<=e
+    if(s.getTime() <= r.end.getTime() && r.start.getTime() <= e.getTime()){
+      return true;
+    }
+  }
+  return false;
 }
 
 /* 予約データを読み込む */
@@ -1779,7 +1833,7 @@ function showLoginScreen(prefillEmail, errorMsg) {
   // ✅ XSS対策: ログイン画面もcreateElementで構築
   var schoolLabel = document.createElement('div');
   schoolLabel.style.cssText = 'font-size:11px;color:#9aa3b5;letter-spacing:.08em;margin-bottom:4px;';
-  schoolLabel.textContent = '本郷中学・高等学校';
+  schoolLabel.textContent = '本郷中学校・高等学校';
   var sysLabel = document.createElement('div');
   sysLabel.style.cssText = 'font-size:20px;font-weight:700;color:#1a4a8a;margin-bottom:24px;';
   sysLabel.textContent = '備品管理システム';
@@ -2785,10 +2839,7 @@ function toggleHelpDrawer() {
   if (isOpen) {
     closeHelpDrawer();
   } else {
-    drawer.style.display = 'block';
-    requestAnimationFrame(function() {
-      drawer.classList.add('open');
-    });
+    drawer.classList.add('open');
     if (btn) btn.classList.add('active');
     // ドロワー外クリックで閉じる
     setTimeout(function() {
@@ -2803,9 +2854,6 @@ function closeHelpDrawer() {
   if (!drawer) return;
   drawer.classList.remove('open');
   if (btn) btn.classList.remove('active');
-  setTimeout(function() {
-    if (!drawer.classList.contains('open')) drawer.style.display = 'none';
-  }, 260);
   document.removeEventListener('click', _onClickOutsideDrawer);
 }
 
