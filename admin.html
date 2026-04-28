@@ -160,6 +160,27 @@ tr:hover td{background:var(--cobalt-ghost);}
 /* ── 備品フォーム ── */
 .resource-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 
+/* ── スマホ警告バナー（v2.8 で追加） ── */
+/* 管理画面はテーブル列数が多くスマホ縦表示には不向きなため、
+   スマホ幅でアクセスされた場合のみバナーを表示して案内する。
+   PC・タブレット幅では display:none のままで、表示・動作とも一切影響しない。 */
+.mobile-warning{display:none;}
+@media(max-width:768px){
+  .mobile-warning{
+    display:flex;align-items:flex-start;gap:10px;
+    background:var(--warning-light);
+    border:1px solid #f0c674;
+    border-radius:var(--radius-sm);
+    padding:12px 14px;
+    margin:12px 12px 0;
+    font-size:12px;line-height:1.5;
+    color:var(--warning);
+  }
+  .mobile-warning .icon{font-size:18px;flex-shrink:0;line-height:1;}
+  .mobile-warning .body{flex:1;}
+  .mobile-warning .body strong{display:block;font-size:13px;margin-bottom:2px;color:var(--gray-800);}
+}
+
 @media(max-width:768px){
   .sidebar{display:none;}
   .stats-grid{grid-template-columns:1fr 1fr;}
@@ -241,6 +262,15 @@ tr:hover td{background:var(--cobalt-ghost);}
 
   <!-- コンテンツ -->
   <main class="main">
+
+    <!-- スマホ警告バナー（v2.8 で追加・PC/タブレットでは display:none で非表示） -->
+    <div class="mobile-warning">
+      <span class="icon">⚠️</span>
+      <div class="body">
+        <strong>管理画面は PC・タブレットでのご利用を推奨します</strong>
+        スマートフォンでは一部の管理用テーブルが正しく表示されません。
+      </div>
+    </div>
 
     <!-- ダッシュボード -->
     <div class="screen active" id="screen-dashboard">
@@ -1055,11 +1085,15 @@ function loadDashboard() {
     if (subEl && discarded > 0) subEl.textContent = '登録備品（廃棄済 ' + discarded + '件 除外）';
   }).catch(function() { setText('stat-total-resources', 'ERR'); });
 
-  // 延滞統計：
-  // サーバ側で due_date < 今日 で大まかに絞り、クライアント側で daysFromToday() による
-  // 確実な日付比較で最終判定する（保存形式のばらつき・タイムゾーン誤差への保険）
-  var today = toDateStr(new Date());
-  sbFetch('loans?status=eq.loaned&due_date=lt.' + today + '&select=loan_id,user_email,user_name,due_date,resources(name)').then(function(rows) {
+  // 延滞統計（v2.8 で堅牢化）：
+  // v2.7 までは「サーバ側で due_date < 今日 で一次絞り＋クライアント側 daysFromToday() で最終判定」
+  // の二段方式だったが、loans.due_date が text 型で「YYYY/MM/DD」と「YYYY-MM-DD」の混在状態
+  // のとき、サーバ側の文字列比較が "/" (0x2F) と "-" (0x2D) のコード差で誤判定し、古い
+  // スラッシュ形式のレコードがフィルタから漏れる問題が発覚した。
+  // v2.8 では信頼性を最優先し、status=loaned の全件を取得したうえでクライアント側
+  // daysFromToday() のみで延滞判定する一段方式に切り替える。貸出中レコードは現実的な
+  // 規模（〜数百件）にとどまるため、転送量・速度への影響は無視できる範囲。
+  sbFetch('loans?status=eq.loaned&select=loan_id,user_email,user_name,due_date,resources(name)').then(function(rows) {
     // クライアント側で確実に「期限超過」のものだけに絞る
     var data = (rows || []).filter(function(loan) {
       return loan.due_date && daysFromToday(loan.due_date) < 0;
@@ -1664,7 +1698,49 @@ function filterLoans() {
     }
     return true;
   });
+  // v2.8 で追加：フィルタに応じて並び順を変える（4-A 案）
+  // - 全て：loaned_at 降順（最近の動きが上に来る、現状維持）
+  // - 貸出中：due_date 昇順（期限が近いものほど上）
+  // - 延滞中：due_date 昇順（最も長く延滞しているものが上）
+  // - 返却済み：returned_at 降順（最近返却された順）
+  filtered = sortLoansForFilter(filtered, status);
   renderLoans(filtered);
+}
+
+// v2.8 で追加：フィルタに応じた並び替え（A-05 並び順制御）
+// 返却期限・返却日の保存形式は ISO（YYYY-MM-DD）に統一済みなので、
+// 文字列のまま比較可能（辞書順＝日付順）。
+function sortLoansForFilter(arr, statusFilter) {
+  var copy = arr.slice();
+  if (statusFilter === 'loaned' || statusFilter === 'overdue') {
+    // 期限が早いものほど上へ
+    copy.sort(function(a, b) {
+      var da = a.due_date || '9999-99-99';
+      var db = b.due_date || '9999-99-99';
+      if (da < db) return -1;
+      if (da > db) return 1;
+      return 0;
+    });
+  } else if (statusFilter === 'returned') {
+    // 最近返却された順
+    copy.sort(function(a, b) {
+      var ra = a.returned_at || '';
+      var rb = b.returned_at || '';
+      if (ra > rb) return -1;
+      if (ra < rb) return 1;
+      return 0;
+    });
+  } else {
+    // 全て：loaned_at 降順（サーバ取得時点で既にこの順だが念のため）
+    copy.sort(function(a, b) {
+      var la = a.loaned_at || '';
+      var lb = b.loaned_at || '';
+      if (la > lb) return -1;
+      if (la < lb) return 1;
+      return 0;
+    });
+  }
+  return copy;
 }
 
 function renderLoans(data) {
@@ -1718,6 +1794,14 @@ function renderLoans(data) {
         sub.style.color = 'var(--gray-400)';
       }
       tdDue.appendChild(sub);
+    } else if (loan.status === 'returned' && loan.returned_at) {
+      // v2.8 で追加：返却済みの場合、実返却日を期限の下に併記する（提案B）
+      // 期限と実返却日が縦に並ぶことで「期限内 / 期限超過の何日後に返却されたか」が
+      // 一目で読み取れる。色は控えめなグレーで、視覚ノイズを抑える。
+      var subRet = document.createElement('span');
+      subRet.style.cssText = 'display:block;font-size:11px;font-weight:400;margin-top:2px;color:var(--gray-400);';
+      subRet.textContent = '✅ 返却 ' + fmtDate(loan.returned_at);
+      tdDue.appendChild(subRet);
     }
 
     var tdStatus = document.createElement('td');
