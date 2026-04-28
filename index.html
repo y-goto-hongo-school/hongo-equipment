@@ -1226,6 +1226,15 @@ function loadBlockedRanges(resourceId, callback){
           if(r.loaned_at && r.due_date){
             var s=new Date(r.loaned_at);s.setHours(0,0,0,0);
             var e=new Date(r.due_date);e.setHours(0,0,0,0);
+            // v2.9 で追加：延滞中（due_date < today）の貸出は、実際にはまだ
+            // 物が返ってきていない。返却予定日までしかブロックしないと、
+            // 「返却するべきだった日の翌日から借りられる」という実害が発生する。
+            // 安全側に倒し、終端を今日まで延長して「物理的に空いていない期間」を
+            // 正しく表現する。返却処理が走った時点でこのレコードは status='returned'
+            // に変わるため、自動的にブロック対象から外れる。
+            if(e.getTime() < today.getTime()){
+              e = today;
+            }
             rsvBlockedRanges.push({start:s,end:e});
           }
         });
@@ -1414,8 +1423,20 @@ function goToReserveConfirm(){
     if(cachedLoan && cachedLoan.due_date){
       var dueDate=new Date(cachedLoan.due_date);dueDate.setHours(0,0,0,0);
       var minD=new Date(dueDate);minD.setDate(dueDate.getDate()+1); // 返却日の翌日
+      // v2.9 で修正：延滞中（due_date < today）の場合、minD も過去日になり
+      // 「今日から借りる」予約が組めてしまう不具合があった。今日より前にはならないよう
+      // クランプする。延滞中の場合は実質「明日以降」が予約可能日となる。
+      if(minD.getTime() < today.getTime()){
+        minD = new Date(today);
+        minD.setDate(today.getDate()+1); // 今日返却される可能性も考えて、明日以降を最小値とする
+      }
       S.rsvMinDate=minD;
-      statusText='貸出中（返却予定日: '+cachedLoan.due_date+' の翌日以降で予約可）';
+      // 延滞中か期限内かでステータス文言を分ける
+      if(dueDate.getTime() < today.getTime()){
+        statusText='貸出中（返却予定日 '+cachedLoan.due_date+' を超過・返却次第予約可）';
+      } else {
+        statusText='貸出中（返却予定日: '+cachedLoan.due_date+' の翌日以降で予約可）';
+      }
     } else {
       // 他人が借りている備品 → DBから返却予定日を取得
       statusText='貸出中（返却予定日を確認中…）';
@@ -1424,11 +1445,20 @@ function goToReserveConfirm(){
           if(rows&&rows.length>0&&rows[0].due_date){
             var dueDate=new Date(rows[0].due_date);dueDate.setHours(0,0,0,0);
             var minD=new Date(dueDate);minD.setDate(dueDate.getDate()+1);
+            // v2.9 で修正：延滞中の場合に過去日にならないようクランプ
+            if(minD.getTime() < today.getTime()){
+              minD = new Date(today);
+              minD.setDate(today.getDate()+1);
+            }
             S.rsvMinDate=minD;
             // カレンダーの開始月をminDateに合わせる
             S.rsvCalYear=minD.getFullYear();S.rsvCalMonth=minD.getMonth();
             // ステータス表示更新
-            if(statusEl) statusEl.textContent='貸出中（'+rows[0].due_date+' の翌日以降で予約可）';
+            if(dueDate.getTime() < today.getTime()){
+              if(statusEl) statusEl.textContent='貸出中（返却予定日 '+rows[0].due_date+' を超過・返却次第予約可）';
+            } else {
+              if(statusEl) statusEl.textContent='貸出中（'+rows[0].due_date+' の翌日以降で予約可）';
+            }
             renderCalendarRsv();
           }
         })
@@ -1555,10 +1585,15 @@ function renderMypageReservations(){
     var et=document.createElement('div');et.className='empty-text';et.textContent='予約中の備品はありません';
     empty.appendChild(ei);empty.appendChild(et);container.appendChild(empty);return;
   }
+  // v2.9 で追加：今日以降に開始日を迎えた予約には「借りる」ボタンを出す。
+  // 予約からの直接貸出の判定に使う今日の日付。
+  var today=new Date();today.setHours(0,0,0,0);
   myReservations.forEach(function(rsv){
     var res=allResources.filter(function(r){return r.resource_id===rsv.resource_id;})[0]||{};
     var card=document.createElement('div');
-    card.className='loan-card';card.style.cursor='default';
+    card.className='loan-card';
+    // v2.9 で追加：予約カードをタップで備品詳細画面に遷移する。
+    card.style.cursor='pointer';
     var iconDiv=document.createElement('div');iconDiv.className='loan-icon';iconDiv.textContent=getResourceIcon(res);
     var infoDiv=document.createElement('div');infoDiv.className='loan-info';
     var nameDiv=document.createElement('div');nameDiv.className='loan-name';
@@ -1566,22 +1601,113 @@ function renderMypageReservations(){
     var metaDiv=document.createElement('div');metaDiv.className='loan-meta';
     metaDiv.textContent='希望開始日: '+(rsv.desired_start||'—')+(rsv.desired_end?' ～ '+rsv.desired_end:'');
     infoDiv.appendChild(nameDiv);infoDiv.appendChild(metaDiv);
+
+    // v2.9 で追加：開始日が今日以前なら「借りる準備ができました」サブテキスト
+    var canBorrow = false;
+    if(rsv.desired_start){
+      var startD = new Date(rsv.desired_start); startD.setHours(0,0,0,0);
+      if(startD.getTime() <= today.getTime()) canBorrow = true;
+    }
+    if(canBorrow){
+      var readySub = document.createElement('div');
+      readySub.style.cssText = 'font-size:11px;color:var(--success);font-weight:600;margin-top:3px;';
+      readySub.textContent = '📦 借りる準備ができました';
+      infoDiv.appendChild(readySub);
+    }
+
     var statusDiv=document.createElement('div');statusDiv.className='loan-status';
     var badge=document.createElement('span');badge.className='badge';
     if(rsv.status==='approved'){badge.className+=' badge-active';badge.textContent='承認済';}
     else{badge.className+=' badge-active';badge.textContent='予約済み';}
+    statusDiv.appendChild(badge);
+
+    // v2.9 で追加：開始日以降なら「借りる」ボタンを表示
+    if(canBorrow){
+      var borrowBtn = document.createElement('button');
+      borrowBtn.className = 'return-btn';
+      borrowBtn.textContent = '借りる';
+      borrowBtn.addEventListener('click', function(e){
+        e.stopPropagation(); // カード全体のタップを止める
+        borrowFromReservation(rsv);
+      });
+      statusDiv.appendChild(borrowBtn);
+    }
+
     // キャンセルボタン
     var cancelBtn=document.createElement('button');cancelBtn.className='return-btn';
     cancelBtn.style.background='var(--danger)';cancelBtn.textContent='取消';
-    cancelBtn.addEventListener('click',function(){
+    cancelBtn.addEventListener('click',function(e){
+      e.stopPropagation(); // v2.9 で追加：カード全体のタップを止める
       if(!confirm('「'+( res.name||'この備品')+'」の予約を取り消しますか？'))return;
       sbPatch('reservations?reservation_id=eq.'+encodeURIComponent(rsv.reservation_id),{status:'cancelled'})
         .then(function(){loadMyReservations(currentUser.email);})
         .catch(function(){alert('取消に失敗しました。');});
     });
-    statusDiv.appendChild(badge);statusDiv.appendChild(cancelBtn);
+    statusDiv.appendChild(cancelBtn);
+
+    // v2.9 で追加：カード全体タップで備品詳細に遷移（goToDetailReadOnly：借りる/予約ボタンは出さない）
+    // 備品詳細から借りる場合は別途「借りる準備ができました」のボタン経由で borrowFromReservation を呼ぶ。
+    // これにより、ユーザーは予約備品の詳細（保管場所・使い方等）を確認してから借りる選択ができる。
+    card.addEventListener('click', function(){
+      goToDetailReadOnly((res.name||'') + (res.number?' '+res.number:''), getResourceIcon(res), res.name||'', rsv.resource_id, null);
+    });
+
     card.appendChild(iconDiv);card.appendChild(infoDiv);card.appendChild(statusDiv);
     container.appendChild(card);
+  });
+}
+
+// v2.9 で追加：予約から直接貸出する処理。
+// 既存の completeBorrow と同等の DB 操作に加え、予約レコードを fulfilled に更新する。
+// 返却期限は予約の desired_end を自動適用する。
+function borrowFromReservation(rsv){
+  if(!currentUser){alert('ログイン情報がありません。再ログインしてください。');return;}
+  if(!rsv || !rsv.resource_id || !rsv.desired_end){
+    alert('予約データが不正です。');
+    return;
+  }
+  var res = allResources.filter(function(r){return r.resource_id===rsv.resource_id;})[0] || {};
+  // 確認ダイアログ。返却期限は予約時の希望返却日を引き継ぐ旨を明示する。
+  var confirmMsg = '「' + (res.name||'この備品') + '」を借ります。\n'
+                 + '返却期限：' + rsv.desired_end + '（予約時の希望返却日）\n\n'
+                 + 'よろしいですか？';
+  if(!confirm(confirmMsg)) return;
+
+  var dueISO = rsv.desired_end; // v2.8 で全レコード ISO 形式正規化済み
+  var loanId = 'L' + Date.now();
+
+  sbInsert('loans', {
+    loan_id: loanId,
+    resource_id: rsv.resource_id,
+    user_email: currentUser.email,
+    user_name: currentUser.name,
+    loaned_at: toJST(new Date()),
+    due_date: dueISO,
+    status: 'loaned'
+  })
+  .then(function(){
+    return sbPatch('resources?resource_id=eq.'+encodeURIComponent(rsv.resource_id), {status:'loaned'});
+  })
+  .then(function(){
+    // 予約を消化（fulfilled）に更新。失敗してもメイン処理は完了済みなので catch で握りつぶす。
+    return sbPatch('reservations?reservation_id=eq.'+encodeURIComponent(rsv.reservation_id), {
+      status: 'fulfilled',
+      updated_at: new Date().toISOString()
+    }).catch(function(err){
+      console.warn('予約 fulfilled 更新失敗（貸出は成功済み）:', err);
+    });
+  })
+  .then(function(){
+    // ローカルキャッシュを更新
+    allResources.forEach(function(r){if(r.resource_id===rsv.resource_id) r.status='loaned';});
+    // 貸出・予約両方を再取得
+    loadMyLoans(currentUser.email);
+    loadMyReservations(currentUser.email);
+    alert('「' + (res.name||'この備品') + '」を借りました。\n返却期限：' + dueISO);
+  })
+  .catch(function(err){
+    console.error('予約からの貸出エラー:', err);
+    alert('貸出処理に失敗しました。\n' + (err && err.message ? err.message : ''));
   });
 }
 
@@ -2232,6 +2358,17 @@ function loadMyLoans(email) {
   sbFetch('loans?user_email=eq.' + encodeURIComponent(email) + '&status=in.(loaned,active)&order=loaned_at.desc')
     .then(function(data) {
       myLoans = data || [];
+      // v2.9 で追加：返却期限が早いものを上に並べる（延滞→今日→未来の順に自然に並ぶ）。
+      // サーバ側の order=loaned_at.desc は変更せず、クライアント側でソートする方針。
+      // 日付列は v2.8 で全レコードが ISO 形式（YYYY-MM-DD）に正規化済みのため、
+      // 文字列のまま辞書順比較しても日付順と一致する。due_date が無いものは末尾。
+      myLoans.sort(function(a, b) {
+        var da = a.due_date || '9999-99-99';
+        var db = b.due_date || '9999-99-99';
+        if (da < db) return -1;
+        if (da > db) return 1;
+        return 0;
+      });
       renderHomeLoans();
       updateHomeStats();
       renderMypageCurrentLoans();
