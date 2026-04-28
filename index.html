@@ -1199,6 +1199,9 @@ function completeBorrow(){
     // キャッシュを更新
     allResources.forEach(function(r){if(r.resource_id===S.currentAsset)r.status='loaned';});
     loadMyLoans(currentUser.email);
+    // v2.9 で追加：ホーム画面のカテゴリカードに表示される「○点 貸出可能」を即時反映する。
+    // 従来は再描画されず、タブ切替・再ロードまで古い数値が出ていた（v2.8 以前からの既知バグ）。
+    renderCategoryGrid();
     btn.textContent='✓ 借りる';
     btn.disabled=false;
     showScreen('borrow-success');setNav('home');
@@ -1776,6 +1779,8 @@ function borrowFromReservation(rsv, onSuccess){
     // 貸出・予約両方を再取得
     loadMyLoans(currentUser.email);
     loadMyReservations(currentUser.email);
+    // v2.9 で追加：ホーム画面のカテゴリカードに表示される「○点 貸出可能」を即時反映する。
+    renderCategoryGrid();
     alert('「' + (res.name||'この備品') + '」を借りました。\n返却期限：' + dueISO);
     // v2.9 で追加：呼び出し元が指定したコールバックを実行（画面遷移などに使う）
     if (typeof onSuccess === 'function') onSuccess();
@@ -1907,6 +1912,9 @@ function doReturn(){
     .then(function(){
       document.getElementById('return-datetime').textContent=fmtDT(new Date());
       loadMyLoans(currentUser.email);
+      // v2.9 で追加：ホーム画面のカテゴリカードに表示される「○点 貸出可能」を即時反映する。
+      // 返却で「貸出可能」の点数が増える方向でも、表示を最新化するために必要。
+      renderCategoryGrid();
       showScreen('return-success');setNav('home');
     })
     .catch(function(err){
