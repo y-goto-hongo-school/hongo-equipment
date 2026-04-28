@@ -438,6 +438,14 @@ tr:hover td{background:var(--cobalt-ghost);}
             <select class="form-select" id="resource-filter-dept" style="width:140px" onchange="filterResources()">
               <option value="">部署：すべて</option>
             </select>
+            <!-- v2.9 で追加：備品の並び順を選択する。デフォルトは
+                 「カテゴリ＋名前＋管理番号」順とし、人間が物理的に並べたい順に近づける。
+                 「登録順」は v2.8 までの動作と同じで、後方互換用に残す。 -->
+            <select class="form-select" id="resource-filter-sort" style="width:200px" onchange="filterResources()">
+              <option value="cat_name_num">カテゴリ・名前・管理番号順</option>
+              <option value="name_num">名前・管理番号順</option>
+              <option value="resource_id">登録順</option>
+            </select>
             <input class="search-input" id="resource-search" type="text" placeholder="備品名で検索…" oninput="filterResources()">
           </div>
         </div>
@@ -1932,7 +1940,9 @@ function loadResources() {
     allCategories = results[1] || [];
     var count = document.getElementById('resources-count');
     if (count) count.textContent = '備品一覧（' + allResources.length + '件）';
-    renderResources(allResources);
+    // v2.9 で変更：直接 renderResources ではなく filterResources を呼ぶことで、
+    // 初期表示時もデフォルト並び順（カテゴリ＋名前＋管理番号）が適用される。
+    filterResources();
   }).catch(function(err) {
     console.error('備品取得エラー:', err);
     if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--danger);padding:24px">データ取得に失敗しました</td></tr>';
@@ -1949,6 +1959,32 @@ function filterResources() {
     if (q && !r.name.toLowerCase().includes(q)) return false;
     return true;
   });
+  // v2.9 で追加：選択された並び順を適用する。
+  // 日本語混在の文字列比較は localeCompare を使うと自然な五十音順になる。
+  // 管理番号は数字部分も自然に扱うため numeric オプションを併用。
+  var sortEl = document.getElementById('resource-filter-sort');
+  var sortKey = sortEl ? sortEl.value : 'cat_name_num';
+  function compareStr(a, b) {
+    return String(a||'').localeCompare(String(b||''), 'ja', { numeric: true });
+  }
+  if (sortKey === 'cat_name_num') {
+    filtered.sort(function(a, b) {
+      var ca = (a.categories ? a.categories.name : '') || '';
+      var cb = (b.categories ? b.categories.name : '') || '';
+      var c1 = compareStr(ca, cb);
+      if (c1 !== 0) return c1;
+      var c2 = compareStr(a.name, b.name);
+      if (c2 !== 0) return c2;
+      return compareStr(a.number, b.number);
+    });
+  } else if (sortKey === 'name_num') {
+    filtered.sort(function(a, b) {
+      var c1 = compareStr(a.name, b.name);
+      if (c1 !== 0) return c1;
+      return compareStr(a.number, b.number);
+    });
+  }
+  // sortKey === 'resource_id' のときは何もしない（取得時点で resource_id 昇順）
   renderResources(filtered);
 }
 
