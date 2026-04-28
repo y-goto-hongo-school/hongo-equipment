@@ -493,6 +493,15 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
       </div>
     </div>
 
+    <!-- v2.9 で追加：マイページ予約カード経由で開いた場合に表示する
+         「借りる準備ができました」ボタンエリア。開始日を過ぎた予約からのみ表示される。 -->
+    <div id="reservation-borrow-btn" style="display:none;margin-bottom:14px;">
+      <div style="background:var(--success-light);border:1.5px solid var(--success);border-radius:var(--radius);padding:12px 16px;font-size:13px;color:var(--success);font-weight:600;margin-bottom:10px;">
+        📦 予約していた備品です。借りる準備ができました。
+      </div>
+      <button class="primary-btn" id="reservation-borrow-go" onclick="doBorrowFromReservation()">📦 予約からこの備品を借りる</button>
+    </div>
+
     <div class="detail-card">
       <div class="detail-header">
         <span class="detail-badge" id="detail-badge">電子デバイス › Chromebook</span>
@@ -1000,6 +1009,10 @@ function setDetailContent(name,icon,badge,asset){
 function goToDetailReadOnly(name,icon,badge,asset,loanId){
   S.fromBorrow=false; S.fromHistory=false;
   S.currentLoanId = loanId || null;
+  // v2.9 で追加：予約からの遷移ではないため、予約用ボタンを確実に隠す
+  var rsvBorrowBtn = document.getElementById('reservation-borrow-btn');
+  if (rsvBorrowBtn) rsvBorrowBtn.style.display = 'none';
+  S.currentReservation = null;
   setDetailContent(name,icon,badge,asset);
   document.getElementById('borrow-top-btn').style.display='none';
   document.getElementById('reserve-top-btn').style.display='none';
@@ -1013,9 +1026,58 @@ function goToDetailReadOnly(name,icon,badge,asset,loanId){
   showScreen('item-detail');
 }
 
+// v2.9 で追加：マイページ予約カードからの遷移用。
+// 既存の goToDetailReadOnly と似ているが、開始日を迎えた予約からは
+// 「借りる」ボタン（reservation-borrow-btn）を出して、そのまま貸出できるようにする。
+// 開始日前の予約から来た場合は、ボタンは出さず通常の詳細表示のみ（保管場所・使い方を確認できる）。
+function goToDetailFromReservation(rsv, name, icon, badge, asset){
+  S.fromBorrow=false; S.fromHistory=false;
+  S.currentLoanId = null;
+  S.currentReservation = rsv; // 後で doBorrowFromReservation が参照する
+
+  setDetailContent(name, icon, badge, asset);
+  // 通常の借りる/予約ボタンは出さない（既に予約済みなので）
+  document.getElementById('borrow-top-btn').style.display = 'none';
+  document.getElementById('reserve-top-btn').style.display = 'none';
+  // 延長ボタンも出さない（まだ貸出されていない）
+  document.getElementById('extend-top-btn').style.display = 'none';
+  document.getElementById('reserve-notice-btn').style.display = 'none';
+
+  // 開始日を迎えていれば「借りる準備ができました」ボタンを表示
+  var rsvBorrowBtn = document.getElementById('reservation-borrow-btn');
+  if (rsvBorrowBtn) {
+    var canBorrow = false;
+    if (rsv && rsv.desired_start) {
+      var today = new Date(); today.setHours(0,0,0,0);
+      var startD = new Date(rsv.desired_start); startD.setHours(0,0,0,0);
+      if (startD.getTime() <= today.getTime()) canBorrow = true;
+    }
+    rsvBorrowBtn.style.display = canBorrow ? 'block' : 'none';
+  }
+
+  showScreen('item-detail');
+}
+
+// v2.9 で追加：備品詳細画面の「予約から借りる」ボタンから呼ばれるラッパー。
+// S.currentReservation を引数として既存の borrowFromReservation を呼ぶ。
+function doBorrowFromReservation(){
+  if (!S.currentReservation) {
+    alert('予約情報が見つかりません。マイページからやり直してください。');
+    return;
+  }
+  borrowFromReservation(S.currentReservation, function(){
+    // 貸出成功時：マイページに戻す（予約は消えており、貸出として表示される）
+    showScreen('mypage'); setNav('mypage');
+  });
+}
+
 // 貸出一覧から：借りるボタン＋予約ボタンあり
 function goToDetailBorrowable(name,icon,badge,asset){
   S.fromBorrow=true; S.fromHistory=false;
+  // v2.9 で追加：予約からの遷移ではないため、予約用ボタンを確実に隠す
+  var rsvBorrowBtn1 = document.getElementById('reservation-borrow-btn');
+  if (rsvBorrowBtn1) rsvBorrowBtn1.style.display = 'none';
+  S.currentReservation = null;
   setDetailContent(name,icon,badge,asset);
   document.getElementById('borrow-top-btn').style.display='block';
   document.getElementById('reserve-top-btn').style.display='block';
@@ -1033,6 +1095,10 @@ function goToDetailBorrowable(name,icon,badge,asset){
 // 過去履歴から：借りるボタン＋予約ボタンあり（また借りる）
 function goToDetailFromHistory(name,icon,badge,asset){
   S.fromBorrow=true; S.fromHistory=true;
+  // v2.9 で追加：予約からの遷移ではないため、予約用ボタンを確実に隠す
+  var rsvBorrowBtn2 = document.getElementById('reservation-borrow-btn');
+  if (rsvBorrowBtn2) rsvBorrowBtn2.style.display = 'none';
+  S.currentReservation = null;
   setDetailContent(name,icon,badge,asset);
   document.getElementById('borrow-top-btn').style.display='block';
   document.getElementById('reserve-top-btn').style.display='block';
@@ -1645,11 +1711,17 @@ function renderMypageReservations(){
     });
     statusDiv.appendChild(cancelBtn);
 
-    // v2.9 で追加：カード全体タップで備品詳細に遷移（goToDetailReadOnly：借りる/予約ボタンは出さない）
-    // 備品詳細から借りる場合は別途「借りる準備ができました」のボタン経由で borrowFromReservation を呼ぶ。
-    // これにより、ユーザーは予約備品の詳細（保管場所・使い方等）を確認してから借りる選択ができる。
+    // v2.9 で追加：カード全体タップで備品詳細に遷移。
+    // 開始日を迎えた予約から開いた場合は、詳細画面でも「予約から借りる」ボタンが出る。
+    // 開始日前の予約から開いた場合は、保管場所・使い方等の確認のみ。
     card.addEventListener('click', function(){
-      goToDetailReadOnly((res.name||'') + (res.number?' '+res.number:''), getResourceIcon(res), res.name||'', rsv.resource_id, null);
+      goToDetailFromReservation(
+        rsv,
+        (res.name||'') + (res.number?' '+res.number:''),
+        getResourceIcon(res),
+        res.name||'',
+        rsv.resource_id
+      );
     });
 
     card.appendChild(iconDiv);card.appendChild(infoDiv);card.appendChild(statusDiv);
@@ -1660,7 +1732,8 @@ function renderMypageReservations(){
 // v2.9 で追加：予約から直接貸出する処理。
 // 既存の completeBorrow と同等の DB 操作に加え、予約レコードを fulfilled に更新する。
 // 返却期限は予約の desired_end を自動適用する。
-function borrowFromReservation(rsv){
+// onSuccess コールバックで呼び出し元が成功時の画面遷移を制御できる。
+function borrowFromReservation(rsv, onSuccess){
   if(!currentUser){alert('ログイン情報がありません。再ログインしてください。');return;}
   if(!rsv || !rsv.resource_id || !rsv.desired_end){
     alert('予約データが不正です。');
@@ -1704,6 +1777,8 @@ function borrowFromReservation(rsv){
     loadMyLoans(currentUser.email);
     loadMyReservations(currentUser.email);
     alert('「' + (res.name||'この備品') + '」を借りました。\n返却期限：' + dueISO);
+    // v2.9 で追加：呼び出し元が指定したコールバックを実行（画面遷移などに使う）
+    if (typeof onSuccess === 'function') onSuccess();
   })
   .catch(function(err){
     console.error('予約からの貸出エラー:', err);
