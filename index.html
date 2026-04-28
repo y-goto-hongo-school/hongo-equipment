@@ -64,6 +64,13 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
 .section-title{font-size:12px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
 .section-title::after{content:'';flex:1;height:1px;background:var(--gray-200);}
 
+/* v2.8 で追加：ヒーローカード経由でマイページに飛んだ際、scrollIntoView() が
+   sticky ヘッダー(64px)の裏に「現在の貸出」見出しを隠してしまうのを防ぐ。
+   scroll-margin-top はスクロール時の停止位置にだけ作用し、通常レイアウトの
+   余白には影響しないため、見た目は他の遷移時には一切変化しない。
+   80px = ヘッダー64px + ゆとり16px。 */
+#mypage-loans{scroll-margin-top:80px;}
+
 /* HOME */
 .home-hero{background:linear-gradient(135deg,var(--cobalt-dark),var(--cobalt-mid));border-radius:var(--radius-lg);padding:24px 24px 20px;color:#fff;margin-bottom:20px;position:relative;overflow:hidden;cursor:pointer;transition:filter .2s;}
 .home-hero:hover{filter:brightness(1.06);}
