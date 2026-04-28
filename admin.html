@@ -534,6 +534,7 @@ tr:hover td{background:var(--cobalt-ghost);}
             <option value="">すべて</option>
             <option value="pending">申請中</option>
             <option value="approved">承認済み</option>
+            <option value="fulfilled">貸出済</option>
             <option value="cancelled">取消済み</option>
           </select>
           <input class="search-input" id="rsv-search" type="text" placeholder="氏名・備品名で検索…" oninput="filterReservations()">
@@ -1609,12 +1610,17 @@ function renderReservationsAdmin(data) {
     badge.className = 'badge';
     if (rsv.status === 'pending') { badge.className += ' badge-loaned'; badge.textContent = '申請中'; }
     else if (rsv.status === 'approved') { badge.className += ' badge-active'; badge.textContent = '承認済み'; }
+    else if (rsv.status === 'fulfilled') { badge.className += ' badge-returned'; badge.textContent = '貸出済'; } // v2.9 で追加
     else { badge.className += ' badge-returned'; badge.textContent = '取消済み'; }
     tdStatus.appendChild(badge);
 
     // 操作ボタン
+    // v2.9 で修正：td 自体を display:flex にすると baseline 整列が崩れて
+    // 隣接セルとの罫線位置がずれるため、内側に div を作って flex を当てる。
     var tdAction = document.createElement('td');
-    tdAction.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;';
+    var actionWrap = document.createElement('div');
+    actionWrap.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;';
+    tdAction.appendChild(actionWrap);
 
     if (rsv.status === 'pending') {
       var approveBtn = document.createElement('button');
@@ -1625,17 +1631,17 @@ function renderReservationsAdmin(data) {
       cancelBtn.className = 'btn btn-sm btn-danger';
       cancelBtn.textContent = '✗ 却下';
       cancelBtn.addEventListener('click', function() { updateReservationStatus(rsv.reservation_id, 'cancelled'); });
-      tdAction.appendChild(approveBtn);
-      tdAction.appendChild(cancelBtn);
+      actionWrap.appendChild(approveBtn);
+      actionWrap.appendChild(cancelBtn);
     } else if (rsv.status === 'approved') {
       var cancelBtn2 = document.createElement('button');
       cancelBtn2.className = 'btn btn-sm btn-danger';
       cancelBtn2.textContent = '取消';
       cancelBtn2.addEventListener('click', function() { updateReservationStatus(rsv.reservation_id, 'cancelled'); });
-      tdAction.appendChild(cancelBtn2);
+      actionWrap.appendChild(cancelBtn2);
     } else {
-      tdAction.textContent = '—';
-      tdAction.style.color = 'var(--gray-400)';
+      actionWrap.textContent = '—';
+      actionWrap.style.color = 'var(--gray-400)';
     }
 
     tr.appendChild(tdRes);
@@ -1985,20 +1991,24 @@ function renderResources(data) {
     tdStatus.appendChild(badge);
 
     var tdAction = document.createElement('td');
-    tdAction.style.display = 'flex'; tdAction.style.gap = '6px'; tdAction.style.flexWrap = 'wrap';
+    // v2.9 で修正：td 自体を display:flex にすると baseline 整列が崩れて
+    // 隣接セルとの罫線位置がずれるため、内側に div を作って flex を当てる。
+    var actionWrap = document.createElement('div');
+    actionWrap.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;';
+    tdAction.appendChild(actionWrap);
 
     // 廃棄済みは編集・操作不可
     if (r.status === 'discarded') {
       var discardedLabel = document.createElement('span');
       discardedLabel.style.cssText = 'font-size:11px;color:var(--gray-400);padding:4px 0;';
       discardedLabel.textContent = '操作不可';
-      tdAction.appendChild(discardedLabel);
+      actionWrap.appendChild(discardedLabel);
     } else {
       var editBtn = document.createElement('button');
       editBtn.className = 'btn btn-sm btn-secondary';
       editBtn.textContent = '編集';
       editBtn.addEventListener('click', function() { showResourceModal(r); });
-      tdAction.appendChild(editBtn);
+      actionWrap.appendChild(editBtn);
 
       if (r.status === 'available') {
         // メンテナンスボタン
@@ -2006,28 +2016,28 @@ function renderResources(data) {
         maintBtn.className = 'btn btn-sm btn-danger';
         maintBtn.textContent = 'メンテ';
         maintBtn.addEventListener('click', function() { setResourceStatus(r.resource_id, 'maintenance'); });
-        tdAction.appendChild(maintBtn);
+        actionWrap.appendChild(maintBtn);
         // 廃棄ボタン
         var discardBtn = document.createElement('button');
         discardBtn.className = 'btn btn-sm';
         discardBtn.style.cssText = 'background:#2c3347;color:#fff;';
         discardBtn.textContent = '廃棄';
         discardBtn.addEventListener('click', function() { showDiscardModal(r); });
-        tdAction.appendChild(discardBtn);
+        actionWrap.appendChild(discardBtn);
       } else if (r.status === 'maintenance') {
         // 利用可に戻すボタン
         var restoreBtn = document.createElement('button');
         restoreBtn.className = 'btn btn-sm btn-secondary';
         restoreBtn.textContent = '利用可に戻す';
         restoreBtn.addEventListener('click', function() { setResourceStatus(r.resource_id, 'available'); });
-        tdAction.appendChild(restoreBtn);
+        actionWrap.appendChild(restoreBtn);
         // メンテ中も廃棄可能
         var discardBtn2 = document.createElement('button');
         discardBtn2.className = 'btn btn-sm';
         discardBtn2.style.cssText = 'background:#2c3347;color:#fff;';
         discardBtn2.textContent = '廃棄';
         discardBtn2.addEventListener('click', function() { showDiscardModal(r); });
-        tdAction.appendChild(discardBtn2);
+        actionWrap.appendChild(discardBtn2);
       }
     }
 
