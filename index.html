@@ -389,6 +389,10 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
       <div class="user-avatar" id="header-avatar-display">?</div>
       <div class="user-dropdown" id="user-dropdown">
         <div class="user-dropdown-item" onclick="closeUserDropdown();showScreen('mypage');setNav('mypage')">👤 マイページ</div>
+        <!-- v2.9 で追加：管理者のみ admin.html へ遷移する項目を表示する。
+             ログイン時に currentUser.role を確認して動的に display を切り替える（updateAdminMenuVisibility）。-->
+        <div class="user-dropdown-divider" id="user-dropdown-admin-divider" style="display:none;"></div>
+        <div class="user-dropdown-item" id="user-dropdown-admin-link" style="display:none;" onclick="closeUserDropdown();window.location.href='admin.html';">⚙️ 管理画面</div>
         <div class="user-dropdown-divider"></div>
         <div class="user-dropdown-item danger" onclick="doLogout()">🚪 ログアウト</div>
       </div>
@@ -2462,8 +2466,16 @@ function loadMyLoans(email) {
 // ── マイページ ロールバッジ更新 ─────────────────
 function updateMypageRoleBadge() {
   var chip = document.getElementById('mypage-role-chip');
-  if (!chip || !currentUser) return;
-  chip.textContent = currentUser.role === 'admin' ? '管理者' : 'スタッフ';
+  if (chip && currentUser) {
+    chip.textContent = currentUser.role === 'admin' ? '管理者' : 'スタッフ';
+  }
+  // v2.9 で追加：管理者の場合のみヘッダードロップダウンに「管理画面」項目を表示する。
+  // 一般スタッフには見えない。currentUser が null の段階でも安全に動く（display:none のまま）。
+  var adminLink = document.getElementById('user-dropdown-admin-link');
+  var adminDivider = document.getElementById('user-dropdown-admin-divider');
+  var isAdmin = !!(currentUser && currentUser.role === 'admin');
+  if (adminLink) adminLink.style.display = isAdmin ? '' : 'none';
+  if (adminDivider) adminDivider.style.display = isAdmin ? '' : 'none';
 }
 
 // ── マイページ：現在の貸出（動的） ────────────────
