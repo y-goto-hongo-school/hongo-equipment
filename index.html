@@ -154,6 +154,8 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
 .dot{width:6px;height:6px;border-radius:50%;}
 .dot.available{background:var(--success);}
 .dot.loaned{background:var(--danger);}
+/* v2.10: 取り置き仕様のオレンジドット（他者予約期間中の備品用） */
+.dot.warning{background:var(--warning);}
 .borrow-btn{padding:5px 14px;background:var(--cobalt);color:#fff;border:none;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;transition:background .2s;font-family:inherit;}
 .borrow-btn:hover{background:var(--cobalt-dark);}
 .reserve-btn{padding:5px 12px;background:#fff;color:var(--cobalt);border:1.5px solid var(--cobalt);border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;font-family:inherit;}
@@ -2471,6 +2473,14 @@ function loadActiveReservations() {
   return sbFetch('reservations?status=eq.approved&select=reservation_id,resource_id,user_email,desired_start,desired_end')
     .then(function(data) {
       activeReservations = data || [];
+      // v2.10: キャッシュ更新後、もし利用者が現在「備品一覧」画面を見ているなら
+      // バッジ文言（取り置き中・あなたの予約あり等）を即時反映するため再描画する。
+      // ホームのカテゴリカードは「○点 貸出・予約可能」が status='available' ベースの
+      // カウントなので予約状態が変わっても数字は変わらないため、再描画不要。
+      var itemsScreen = document.getElementById('screen-items');
+      if (itemsScreen && itemsScreen.classList.contains('active')) {
+        renderItemGrid(currentSubId, currentParentId);
+      }
     })
     .catch(function(err) {
       console.error('アクティブ予約取得エラー:', err);
@@ -2490,6 +2500,68 @@ document.addEventListener('visibilitychange', function() {
     loadActiveReservations();
   }
 });
+
+// v2.10 で追加：指定備品の「今日」時点の予約状態を判定する共通ヘルパー。
+// 取り置き仕様（要件定義書 v1.13 §3-10）のために新設。
+// renderCategoryGrid・renderItemGrid・備品詳細画面の各描画ロジックから呼ばれ、
+// 状態判定の一元化と一貫性を保つ。
+//
+// 戻り値: { state: 'none'|'self-before'|'self-active'|'other', reservation: <obj>|null }
+//   - 'none'        : この備品にはアクティブな予約がない
+//   - 'self-before' : 自分の予約あり、ただし開始日前（今日 < desired_start）
+//   - 'self-active' : 自分の予約期間中（desired_start ≤ 今日 ≤ desired_end）→ 借りる準備ができている
+//   - 'other'       : 他者の予約期間中（取り置き中）
+//
+// 優先順位：
+//   - 「今日」が予約期間内のレコード（自分または他者）が最優先
+//   - 自分の期間内予約 > 他者の期間内予約（同時には起きないが念のため自分優先）
+//   - 期間内のレコードがなく、自分の未来予約だけある場合は 'self-before'
+//   - どれもなければ 'none'
+//
+// なお、currentUser が未設定（ログイン前）の場合は 'self-*' を返さず、
+// 自分の予約も他者の予約として扱う（'other'）。これは描画ロジックが
+// 認証前にも安全に動作するためのフェイルセーフ。
+function getReservationStateForResource(resourceId) {
+  if (!resourceId) return { state: 'none', reservation: null };
+  // 「今日」を YYYY-MM-DD 形式の文字列で取得（既存 fmtDateISO を流用）
+  // DB の desired_start / desired_end は date 型で YYYY-MM-DD 文字列のため、
+  // 文字列同士の比較で日付の前後判定が正しく行える
+  var now = new Date();
+  var todayStr = fmtDateISO(now.getFullYear(), now.getMonth(), now.getDate());
+  var myEmail = (currentUser && currentUser.email) ? currentUser.email : null;
+  // この備品に関するアクティブ予約だけを抽出
+  var related = activeReservations.filter(function(r) { return r.resource_id === resourceId; });
+  if (related.length === 0) return { state: 'none', reservation: null };
+  // (1) 「今日」が予約期間内のレコードを探す（自分優先）
+  var inRangeSelf = null;
+  var inRangeOther = null;
+  for (var i = 0; i < related.length; i++) {
+    var r = related[i];
+    if (r.desired_start && r.desired_end &&
+        r.desired_start <= todayStr && todayStr <= r.desired_end) {
+      if (myEmail && r.user_email === myEmail) {
+        if (!inRangeSelf) inRangeSelf = r;
+      } else {
+        if (!inRangeOther) inRangeOther = r;
+      }
+    }
+  }
+  if (inRangeSelf) return { state: 'self-active', reservation: inRangeSelf };
+  if (inRangeOther) return { state: 'other', reservation: inRangeOther };
+  // (2) 期間内なし → 自分の未来予約があるか
+  if (myEmail) {
+    for (var j = 0; j < related.length; j++) {
+      var rr = related[j];
+      if (rr.user_email === myEmail && rr.desired_start && rr.desired_start > todayStr) {
+        return { state: 'self-before', reservation: rr };
+      }
+    }
+  }
+  // (3) 自分の未来予約もない（他者の未来予約のみ）→ 表示上は予約なし扱い
+  // 取り置き仕様は「予約期間中のみブロック」（§10-2(2) A案）なので、
+  // 他者の未来予約があっても今日は通常通り扱える
+  return { state: 'none', reservation: null };
+}
 
 function loadMyLoans(email) {
   sbFetch('loans?user_email=eq.' + encodeURIComponent(email) + '&status=in.(loaned,active)&order=loaned_at.desc')
@@ -2720,10 +2792,17 @@ function renderCategoryGrid() {
       statusEl.textContent = '備品未登録';
     } else if (available > 0) {
       statusEl.className = 'category-available';
-      statusEl.textContent = '✓ ' + available + '点 貸出可能';
+      // v2.10 で文言変更：「貸出可能」→「貸出・予約可能」
+      // 取り置き仕様の導入により、カテゴリカードは「貸出」「予約」両方の入口になる。
+      // 数字（available）の計算ロジックは v2.9 までと同じ（status==='available'）で、
+      // 取り置き中の備品も含めてカウントする（=「何らかのアクションができる数」）。
+      statusEl.textContent = '✓ ' + available + '点 貸出・予約可能';
     } else {
       statusEl.style.cssText = 'font-size:11px;color:#c0392b;margin-top:5px;';
-      statusEl.textContent = '現在すべて貸出中';
+      // v2.10 で文言変更：「現在すべて貸出中」→「現在貸出可能な備品はありません」
+      // 取り置き仕様により「貸出中」と「他者の予約取り置き中」が混在しうるため、
+      // より中立的な文言に変更する。
+      statusEl.textContent = '現在貸出可能な備品はありません';
     }
     card.appendChild(iconEl);
     card.appendChild(nameEl);
@@ -2784,8 +2863,31 @@ function renderItemGrid(subCategoryId, parentId) {
     var badge    = parentName + (subName ? ' › ' + subName : '');
     var isLoaned = item.status === 'loaned' || item.status === 'active';
     var isMaintenance = item.status === 'maintenance';
-    var isUnavailable = isLoaned || isMaintenance;
     var loanInfo = myLoans.filter(function(l) { return l.resource_id === item.resource_id; })[0];
+
+    // v2.10 で追加：取り置き仕様の状態判定。
+    // 優先順位（中間引き継ぎ書 §5-4-3 / 確定済み）：
+    //   1. 貸出中     → ● 貸出中・予約可
+    //   2. メンテナンス中 → ● メンテナンス中
+    //   3. 自分の予約・開始日前 → 📦 あなたの予約あり
+    //   4. 自分の予約・開始日後 → 📦 借りる準備ができました
+    //   5. 他者の予約取り置き中 → 🪧 取り置き中・予約可
+    //   6. 通常       → ● 貸出・予約可能
+    // resource.status（loaned/maintenance）が最優先で、それ以外で
+    // getReservationStateForResource の戻り値で 3〜6 を分岐する。
+    var rsvState = { state: 'none', reservation: null };
+    if (!isLoaned && !isMaintenance) {
+      rsvState = getReservationStateForResource(item.resource_id);
+    }
+
+    // カードの非活性表示（薄く表示する）対象：
+    //   - 貸出中・メンテナンス中：従来どおり unavailable
+    //   - 自分の予約・開始日前：「まだ借りられない」状態だが詳細画面へは遷移可能なので
+    //     unavailable は付けない（クリック可能であることを視覚的に示す）
+    //   - 自分の予約・開始日後：借りる準備ができている（活性表示）
+    //   - 他者の取り置き中：予約は可能なので活性表示
+    var isUnavailable = isLoaned || isMaintenance;
+
     var card = document.createElement('div');
     card.className = 'item-card' + (isUnavailable ? ' unavailable' : '');
     // ✅ XSS対策: DBの値はtextContentで設定
@@ -2815,48 +2917,66 @@ function renderItemGrid(subCategoryId, parentId) {
     var statusSpan = document.createElement('span');
     statusSpan.className = 'status-dot';
     var dot = document.createElement('span');
-    dot.className = 'dot ' + (isLoaned ? 'loaned' : (isMaintenance ? 'loaned' : 'available'));
-    statusSpan.appendChild(dot);
-    statusSpan.appendChild(document.createTextNode(
-      isLoaned ? '貸出中' : (isMaintenance ? 'メンテナンス中' : '貸出可能')
-    ));
-    footer.appendChild(statusSpan);
+
+    // v2.10：状態に応じたドットの色とバッジ文言を決定
+    // ドットの色：
+    //   - 貸出中／メンテナンス中：red（var(--danger)）
+    //   - 自分の予約（開始日前後とも）：green（var(--success)）
+    //   - 他者の取り置き中：orange（var(--warning)）
+    //   - 通常：green（var(--success)）
+    var dotClass = 'available';
+    var statusText = '貸出・予約可能';
+    var statusPrefix = ''; // バッジ前のアイコン（📦 や 🪧 など）
+
     if (isLoaned) {
-      var reserveBtn = document.createElement('button');
-      reserveBtn.className = 'reserve-btn';
-      reserveBtn.textContent = '予約';
-      footer.appendChild(reserveBtn);
+      dotClass = 'loaned';
+      statusText = '貸出中・予約可';
     } else if (isMaintenance) {
-      var maintLabel = document.createElement('button');
-      maintLabel.className = 'reserve-btn';
-      maintLabel.textContent = 'メンテナンス中';
-      maintLabel.disabled = true;
-      maintLabel.style.opacity = '0.5';
-      maintLabel.style.cursor = 'not-allowed';
-      footer.appendChild(maintLabel);
-    } else {
-      var borrowBtn = document.createElement('button');
-      borrowBtn.className = 'borrow-btn';
-      borrowBtn.textContent = '借りる';
-      footer.appendChild(borrowBtn);
+      dotClass = 'loaned';
+      statusText = 'メンテナンス中';
+    } else if (rsvState.state === 'self-active') {
+      // 自分の予約・開始日後（借りる準備ができている）
+      // 📦 アイコンは textContent ではなく別 span で前置（ドットを置き換え）
+      dotClass = 'available';
+      statusText = '借りる準備ができました';
+      statusPrefix = '📦';
+    } else if (rsvState.state === 'self-before') {
+      // 自分の予約・開始日前
+      dotClass = 'available';
+      statusText = 'あなたの予約あり';
+      statusPrefix = '📦';
+    } else if (rsvState.state === 'other') {
+      // 他者の予約取り置き中
+      dotClass = 'warning';
+      statusText = '取り置き中・予約可';
+      statusPrefix = '🪧';
     }
+    // それ以外（state === 'none'）は初期値「貸出・予約可能」のまま
+
+    dot.className = 'dot ' + dotClass;
+    if (statusPrefix) {
+      // 📦 や 🪧 アイコンを使う状態：ドットは出さず、絵文字を前置
+      var iconSpan = document.createElement('span');
+      iconSpan.textContent = statusPrefix;
+      iconSpan.style.fontSize = '12px';
+      iconSpan.style.lineHeight = '1';
+      statusSpan.appendChild(iconSpan);
+    } else {
+      statusSpan.appendChild(dot);
+    }
+    statusSpan.appendChild(document.createTextNode(statusText));
+    footer.appendChild(statusSpan);
+    // v2.10：ボタンを廃止。カード全体タップで詳細画面に遷移する設計に統一。
+    // 詳細画面で借用・予約のいずれかを選べる（既存挙動を維持）。
     card.appendChild(footer);
-    // F-17: 貸出中でも詳細へ遷移して予約できる
+
+    // カードタップ時の挙動：メンテナンス中以外はすべて詳細画面に遷移
     var icon = getResourceIcon(item);
     var rid  = item.resource_id;
     var dname = item.name + (item.number ? ' '+item.number : '');
     if (!isMaintenance) {
       card.style.cursor = 'pointer';
       card.addEventListener('click', function() { goToDetailBorrowable(dname, icon, badge, rid); });
-      var borrowBtnEl = card.querySelector('.borrow-btn');
-      if (borrowBtnEl) borrowBtnEl.addEventListener('click', function(e) { e.stopPropagation(); goToDetailBorrowable(dname, icon, badge, rid); });
-      var reserveBtnEl = card.querySelector('.reserve-btn');
-      if (reserveBtnEl) reserveBtnEl.addEventListener('click', function(e) {
-        e.stopPropagation();
-        // 詳細画面へ遷移してそのまま予約フローへ
-        goToDetailBorrowable(dname, icon, badge, rid);
-        setTimeout(function(){ goToReserveConfirm(); }, 50);
-      });
     }
     grid.appendChild(card);
   });
