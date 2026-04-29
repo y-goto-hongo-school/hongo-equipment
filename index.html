@@ -1609,6 +1609,7 @@ function completeReservation(){
     if(endEl) endEl.textContent=endStr+'（'+DOW[S.selectedRsvEndDate.getDay()]+'）';
     btn.textContent='📋 予約を申し込む';btn.disabled=false;
     loadMyReservations(currentUser.email);
+    loadActiveReservations(); // v2.10: 取り置き仕様用キャッシュを更新（自分の予約が増えたため）
     showScreen('reserve-success');setNav('home');
   }).catch(function(err){
     console.error('予約エラー:',err);
@@ -1713,7 +1714,10 @@ function renderMypageReservations(){
       e.stopPropagation(); // v2.9 で追加：カード全体のタップを止める
       if(!confirm('「'+( res.name||'この備品')+'」の予約を取り消しますか？'))return;
       sbPatch('reservations?reservation_id=eq.'+encodeURIComponent(rsv.reservation_id),{status:'cancelled'})
-        .then(function(){loadMyReservations(currentUser.email);})
+        .then(function(){
+          loadMyReservations(currentUser.email);
+          loadActiveReservations(); // v2.10: 取り置き仕様用キャッシュを更新（予約が減ったため）
+        })
         .catch(function(){alert('取消に失敗しました。');});
     });
     statusDiv.appendChild(cancelBtn);
@@ -1783,6 +1787,8 @@ function borrowFromReservation(rsv, onSuccess){
     // 貸出・予約両方を再取得
     loadMyLoans(currentUser.email);
     loadMyReservations(currentUser.email);
+    // v2.10: 取り置き仕様用キャッシュを更新（自分の予約が fulfilled になったため有効予約から除外される）
+    loadActiveReservations();
     // v2.9 で追加：ホーム画面のカテゴリカードに表示される「○点 貸出可能」を即時反映する。
     renderCategoryGrid();
     alert('「' + (res.name||'この備品') + '」を借りました。\n返却期限：' + dueISO);
@@ -2232,14 +2238,19 @@ function loginSuccess(user) {
   updateMypageRoleBadge();
   loadDepartments();
   // ② allResources・allCategoriesが揃ってからloadMyLoansを実行（アイコン・備品名の表示崩れ防止）
+  // v2.10 で追加：loadActiveReservations も初期ロード時に併せて取得する。
+  // これにより取り置き仕様の各種表示（カテゴリ一覧の予約済みバッジ、ホームの新セクション等）が
+  // 初回描画時から正しく動作する。
   Promise.all([loadResources(), loadCategories()])
     .then(function() {
       loadMyLoans(user.email);
       loadMyReservations(user.email); // F-17: 予約データ読み込み
+      loadActiveReservations(); // v2.10: 取り置き仕様用のアクティブ予約キャッシュ
     })
     .catch(function() {
       loadMyLoans(user.email);
       loadMyReservations(user.email);
+      loadActiveReservations(); // v2.10: エラー時もキャッシュ取得は試行
     });
 
   // ── 初回ログイン判定 ──────────────────────
@@ -2414,6 +2425,15 @@ var myLoans        = [];
 var allDepartments  = [];
 var currentParentId = null;
 var currentSubId    = null;
+// v2.10 で追加：取り置き仕様のためのアクティブ予約キャッシュ。
+// 認証ユーザー全員分の status='approved' な予約を一括保持し、
+// カテゴリ一覧の予約済みバッジ判定・「📦 予約備品の準備ができました」セクション・
+// ベルアイコンの失効間近件数集計・自動失効処理など複数機能で共有する。
+// 取得カラムは reservation_id, resource_id, user_email, desired_start, desired_end の5つのみ。
+// user_name は取得しない（取り置き仕様で氏名は表示しない方針のため）。
+// キャッシュ無効化のトリガー：(1) 予約成立 (2) 予約取消 (3) 貸出成立(fulfilled化)
+//   (4) 自動失効 (5) 一括失効(管理者) (6) タブ可視化時(visibilitychange)
+var activeReservations = [];
 
 function loadDepartments() {
   sbFetch('departments?order=department_id&select=department_id,name')
@@ -2440,6 +2460,36 @@ function loadResources() {
     })
     .catch(function(err) { console.error('備品エラー:', err); });
 }
+
+// v2.10 で追加：アクティブ予約の一括取得・キャッシュ更新。
+// 取り置き仕様（要件定義書 v1.13 §3-10、引き継ぎ文書 v2.10 §10）のために新設。
+// status='approved' のレコードのみ対象（pending は即承認ルートでは使わないため空、
+// fulfilled/cancelled は予約済みではない状態なので除外）。
+// 戻り値は Promise（呼び出し元が .then で連動できるように）。
+// データ規模見積もり：教職員80名×平均2件＝最大200件程度・約20KB。負荷無視可能。
+function loadActiveReservations() {
+  return sbFetch('reservations?status=eq.approved&select=reservation_id,resource_id,user_email,desired_start,desired_end')
+    .then(function(data) {
+      activeReservations = data || [];
+    })
+    .catch(function(err) {
+      console.error('アクティブ予約取得エラー:', err);
+      // エラー時はキャッシュを空にして、呼び出し元の描画ロジックが
+      // 「予約なし」として動作するようフェイルセーフにする
+      activeReservations = [];
+    });
+}
+
+// v2.10 で追加：タブが再表示されたときにアクティブ予約キャッシュを再取得する。
+// 利用者がブラウザタブを長時間放置していた場合、他者の予約状況が古いままになるため、
+// タブが visible になったタイミングで最新化する。
+// currentUser チェックでログイン画面表示中などの誤発火を防ぐ。
+// 取得カラム数が少ない（5カラム・最大200件・約20KB）ため発火頻度が高くても負荷は無視可能。
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible' && currentUser) {
+    loadActiveReservations();
+  }
+});
 
 function loadMyLoans(email) {
   sbFetch('loans?user_email=eq.' + encodeURIComponent(email) + '&status=in.(loaned,active)&order=loaned_at.desc')
