@@ -385,7 +385,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
   </div>
   <div class="header-right">
     <div class="notif-btn" id="notif-btn" onclick="showScreen('mypage');setNav('mypage')">
-      🔔<span class="notif-badge">1</span>
+      🔔<span class="notif-badge" id="notif-badge">0</span>
     </div>
     <div class="user-info" id="user-info-btn" onclick="toggleUserDropdown(event)">
       <div class="user-avatar" id="header-avatar-display">?</div>
@@ -445,6 +445,17 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
         <div class="action-arrow">›</div>
       </div>
     </div>
+    <!-- v2.11 で追加：取り置き仕様 ④（要件定義書 §3-10-3 (2)）。
+         自分の有効予約（status='approved' AND user_email=self）のうち
+         desired_start ≤ 今日 のものが1件以上ある場合に表示する。
+         配置：引き継ぎ文書 §9-3 では「現在の貸出」と「カテゴリグリッド」の間と記載されているが、
+         ホーム画面にはカテゴリグリッドが存在しないため、新着通知としての性質を踏まえ
+         「現在の貸出」セクション直前に配置した（v2.11 セッションでの判断）。
+         全件借り終えた / 該当予約がない場合はセクション全体を非表示にする。 -->
+    <div id="ready-reservations-section" style="display:none;">
+      <div class="section-title">📦 予約備品の準備ができました</div>
+      <div id="ready-reservations-container"></div>
+    </div>
     <div class="section-title">現在の貸出</div>
     <div id="home-loans-container">
       <div style="text-align:center;padding:20px;color:#9aa3b5;font-size:13px;">読み込み中...</div>
@@ -496,6 +507,16 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--gray-50);color:var(-
     <div id="reserve-notice-btn" style="display:none;margin-bottom:14px;">
       <div style="background:var(--warning-light);border:1.5px solid var(--warning);border-radius:var(--radius);padding:12px 16px;font-size:12px;color:var(--warning);font-weight:600;">
         📋 この備品には予約が入っているため、返却期限の変更はできません。
+      </div>
+    </div>
+
+    <!-- v2.11 で追加：取り置き仕様 ③（要件定義書 §3-10-3 (1)）。
+         他者の予約期間中（取り置き中）にこの備品の詳細を開いた場合、
+         「予約のため借りられません（○月○日まで）」と期間のみ表示する。
+         プライバシー方針（§3-10-5）により予約者の氏名は出さない。 -->
+    <div id="reserve-other-notice" style="display:none;margin-bottom:14px;">
+      <div style="background:var(--warning-light);border:1.5px solid var(--warning);border-radius:var(--radius);padding:12px 16px;font-size:13px;color:var(--warning);font-weight:600;">
+        🪧 <span id="reserve-other-notice-text">予約のため借りられません</span>
       </div>
     </div>
 
@@ -901,7 +922,42 @@ function updateOverdueUI(){
   document.getElementById('overdue-banner').classList.toggle('show',S.hasOverdue);
   var shouldDisable = S.hasOverdue || S.hasLoanLimit;
   document.getElementById('borrow-action').classList.toggle('disabled',shouldDisable);
-  document.getElementById('notif-btn').classList.toggle('hidden',!S.hasOverdue&&!S.hasDueSoon);
+  // v2.11 で拡張：取り置き仕様 ⑤（要件定義書 §3-10-3 (3)）。
+  // ベルアイコンの表示条件・バッジ件数を「延滞 + 期限間近 + 失効間近（残7日以内）」に拡張する。
+  // 失効間近件数 = 自分の有効予約のうち getDaysUntilExpire(desired_start) が 0〜7 のもの。
+  // currentUser が未設定の場合は 0 件として扱う（フェイルセーフ）。
+  var expiringSoonCount = 0;
+  if (currentUser && currentUser.email && Array.isArray(activeReservations)) {
+    expiringSoonCount = activeReservations.filter(function(r){
+      if (r.user_email !== currentUser.email) return false;
+      var d = getDaysUntilExpire(r.desired_start);
+      return d !== null && d >= 0 && d <= 7;
+    }).length;
+  }
+  S.expiringSoonCount = expiringSoonCount;
+  // 件数集計：延滞・期限間近の件数は updateHomeStats 側で S.hasOverdue/S.hasDueSoon と
+  // 別に必要なので、ここでは myLoans を再走査して集計する（updateHomeStats と同じロジック）。
+  var today = new Date(); today.setHours(0,0,0,0);
+  var overdueCount = (Array.isArray(myLoans) ? myLoans : []).filter(function(l){
+    if (!l.due_date) return false;
+    var d = new Date(l.due_date); d.setHours(0,0,0,0);
+    return d < today;
+  }).length;
+  var dueSoonCount = (Array.isArray(myLoans) ? myLoans : []).filter(function(l){
+    if (!l.due_date) return false;
+    var d = new Date(l.due_date); d.setHours(0,0,0,0);
+    var diff = Math.round((d - today) / 864e5);
+    return diff >= 0 && diff <= 1;
+  }).length;
+  var totalNotif = overdueCount + dueSoonCount + expiringSoonCount;
+  var hasAnyNotif = totalNotif > 0;
+  var notifBtn = document.getElementById('notif-btn');
+  if (notifBtn) notifBtn.classList.toggle('hidden', !hasAnyNotif);
+  var notifBadge = document.getElementById('notif-badge');
+  if (notifBadge) {
+    // 99 件超は「99+」表示（バッジサイズ的に2桁が限界。本郷の運用規模ではほぼ起きないが念のため）
+    notifBadge.textContent = totalNotif > 99 ? '99+' : String(totalNotif);
+  }
   document.getElementById('stat-overdue-wrap').style.display=S.hasOverdue?'':'none';
   document.getElementById('stat-duesoon-wrap').style.display=S.hasDueSoon?'':'none';
   // F-16: 貸出上限バナー
@@ -1011,6 +1067,40 @@ function setDetailContent(name,icon,badge,asset){
   } else if (urlSec) { urlSec.style.display = 'none'; }
 }
 
+// v2.11 で追加：取り置き仕様 ③（要件定義書 §3-10-3 (1)）。
+// 指定備品に対する「他者の予約取り置き中」表示の制御を一元化する。
+// goToDetailReadOnly / goToDetailBorrowable / goToDetailFromHistory の3関数から呼ばれ、
+// state が 'other' のときに reserve-other-notice を表示し、貸出/予約ボタンを抑止する。
+// 戻り値: true = 他者の取り置き中（呼び出し側で借りる/予約ボタンを出さない判断に使う）
+//         false = 他者の取り置き中ではない（通常通り）
+// プライバシー方針（§3-10-5）に基づき、予約者氏名は表示せず期間（desired_end）のみ出す。
+function applyOtherReservationNotice(asset){
+  var noticeEl = document.getElementById('reserve-other-notice');
+  var noticeTextEl = document.getElementById('reserve-other-notice-text');
+  // 既定で非表示にしてからキャッシュベースの判定を行う
+  if (noticeEl) noticeEl.style.display = 'none';
+  if (!asset) return false;
+  var rs = getReservationStateForResource(asset);
+  if (rs.state !== 'other' || !rs.reservation) return false;
+  // 「○月○日まで」表記。desired_end は YYYY-MM-DD 文字列。
+  var endStr = rs.reservation.desired_end || '';
+  var label = '予約のため借りられません';
+  if (endStr) {
+    // YYYY-MM-DD を「○月○日」表記に整形（既存の fmt との整合のため文字列処理で実装）
+    var parts = endStr.split('-');
+    if (parts.length === 3) {
+      var mNum = parseInt(parts[1], 10);
+      var dNum = parseInt(parts[2], 10);
+      if (!isNaN(mNum) && !isNaN(dNum)) {
+        label = '予約のため借りられません（' + mNum + '月' + dNum + '日まで）';
+      }
+    }
+  }
+  if (noticeTextEl) noticeTextEl.textContent = label;
+  if (noticeEl) noticeEl.style.display = 'block';
+  return true;
+}
+
 // 読み取り専用（ホーム・マイページ現在貸出から）：借りるボタンなし、延長ボタンあり
 function goToDetailReadOnly(name,icon,badge,asset,loanId){
   S.fromBorrow=false; S.fromHistory=false;
@@ -1023,6 +1113,9 @@ function goToDetailReadOnly(name,icon,badge,asset,loanId){
   document.getElementById('borrow-top-btn').style.display='none';
   document.getElementById('reserve-top-btn').style.display='none';
   document.getElementById('extend-item-name').textContent=name;
+  // v2.11 で追加：他者の予約取り置き中なら通知を表示する（読み取り専用画面でも、
+  // 利用者がこの備品が「予約のため借りられない」状態にあることを明示する）。
+  applyOtherReservationNotice(asset);
   // 予約が入っているか確認して延長ボタン/予約通知を制御
   checkReservationForAsset(asset, function(hasRsv){
     S.currentLoanHasReservation = hasRsv;
@@ -1048,6 +1141,9 @@ function goToDetailFromReservation(rsv, name, icon, badge, asset){
   // 延長ボタンも出さない（まだ貸出されていない）
   document.getElementById('extend-top-btn').style.display = 'none';
   document.getElementById('reserve-notice-btn').style.display = 'none';
+  // v2.11 で追加：自分の予約から開く動線なので他者通知は出さない（フェイルセーフ）
+  var otherNotice = document.getElementById('reserve-other-notice');
+  if (otherNotice) otherNotice.style.display = 'none';
 
   // 開始日を迎えていれば「借りる準備ができました」ボタンを表示
   var rsvBorrowBtn = document.getElementById('reservation-borrow-btn');
@@ -1085,11 +1181,16 @@ function goToDetailBorrowable(name,icon,badge,asset){
   if (rsvBorrowBtn1) rsvBorrowBtn1.style.display = 'none';
   S.currentReservation = null;
   setDetailContent(name,icon,badge,asset);
-  document.getElementById('borrow-top-btn').style.display='block';
+  // v2.11 で追加：他者の予約取り置き中（state='other'）なら、貸出ボタンのみを抑止する。
+  // 予約ボタンは出す（要件定義書 §9-2-2 (3) のバッジ「🪧 取り置き中・予約可」の通り、
+  // 取り置き期間外の日付なら予約は可能なため。具体的な期間外判定は予約画面側の
+  // loadBlockedRanges + rangeOverlapsBlocked が既存ロジックで担保している）。
+  var isOther = applyOtherReservationNotice(asset);
+  document.getElementById('borrow-top-btn').style.display = isOther ? 'none' : 'block';
   document.getElementById('reserve-top-btn').style.display='block';
   document.getElementById('extend-top-btn').style.display='none';
   document.getElementById('reserve-notice-btn').style.display='none';
-  // 予約モードで来た場合はそのまま予約画面へ
+  // 予約モードで来た場合はそのまま予約画面へ（他者取り置き中も予約画面自体は開ける）
   if(S._reserveMode){
     showScreen('item-detail');
     setTimeout(function(){ goToReserveConfirm(); }, 50);
@@ -1106,7 +1207,9 @@ function goToDetailFromHistory(name,icon,badge,asset){
   if (rsvBorrowBtn2) rsvBorrowBtn2.style.display = 'none';
   S.currentReservation = null;
   setDetailContent(name,icon,badge,asset);
-  document.getElementById('borrow-top-btn').style.display='block';
+  // v2.11 で追加：他者の予約取り置き中なら、再貸出ボタンのみを抑止。予約ボタンは出す。
+  var isOtherH = applyOtherReservationNotice(asset);
+  document.getElementById('borrow-top-btn').style.display = isOtherH ? 'none' : 'block';
   document.getElementById('reserve-top-btn').style.display='block';
   document.getElementById('extend-top-btn').style.display='none';
   document.getElementById('reserve-notice-btn').style.display='none';
@@ -2481,12 +2584,23 @@ function loadActiveReservations() {
       if (itemsScreen && itemsScreen.classList.contains('active')) {
         renderItemGrid(currentSubId, currentParentId);
       }
+      // v2.11 で追加：ホーム新セクション「📦 予約備品の準備ができました」を再描画。
+      // ホーム画面が表示中でなくても DOM 更新はしておく（ホームに戻ったとき即座に正しい
+      // 内容になる）。renderReadyReservations 内で section の display 切替も行うため、
+      // 該当予約がなければ自動的に非表示になる。
+      renderReadyReservations();
+      // v2.11 で追加：ベルアイコンのバッジ件数を更新（失効間近件数が変わる可能性）。
+      // updateOverdueUI 経由で内部的に updateBellBadge が呼ばれる設計（後述）。
+      updateOverdueUI();
     })
     .catch(function(err) {
       console.error('アクティブ予約取得エラー:', err);
       // エラー時はキャッシュを空にして、呼び出し元の描画ロジックが
       // 「予約なし」として動作するようフェイルセーフにする
       activeReservations = [];
+      // v2.11 で追加：エラー時もホーム新セクションを非表示に再描画
+      renderReadyReservations();
+      updateOverdueUI();
     });
 }
 
@@ -3063,6 +3177,175 @@ function renderHomeLoans() {
     });
     container.appendChild(card);
   });
+}
+
+// v2.11 で追加：取り置き仕様の失効残日数計算ヘルパー（要件定義書 §3-10-3 (5)・(6)）。
+// 引数: desiredStartStr = 予約の desired_start（YYYY-MM-DD 文字列）
+// 戻り値: 残日数（整数）。「失効までの残日数」= desired_start + 7 - 今日。
+//         残 7 = 開始日と同じ日 / 残 0 = 失効当日（この日のうちに借りないと失効）/
+//         負の値 = 既に失効すべき状態（自動失効処理の対象）。
+// 計算は YYYY-MM-DD の文字列ベースでローカルタイムゾーン依存を最小化する設計。
+function getDaysUntilExpire(desiredStartStr){
+  if (!desiredStartStr) return null;
+  var parts = desiredStartStr.split('-');
+  if (parts.length !== 3) return null;
+  var startDate = new Date(parseInt(parts[0],10), parseInt(parts[1],10)-1, parseInt(parts[2],10));
+  startDate.setHours(0,0,0,0);
+  var today = new Date(); today.setHours(0,0,0,0);
+  // 失効予定日 = 開始日 + 7日（開始日 day0 とすると、失効当日は day7 = +7日後）
+  var expireDate = new Date(startDate); expireDate.setDate(expireDate.getDate() + 7);
+  var diffMs = expireDate - today;
+  return Math.round(diffMs / 864e5);
+}
+
+// v2.11 で追加：失効残日数のサブテキスト要素を生成する共通ヘルパー（要件定義書 §3-10-3 (5)）。
+// 引数: daysLeft = getDaysUntilExpire の戻り値（整数 / null）
+// 戻り値: サブテキスト用 div 要素（表示対象外なら null）
+// 色分け閾値（要件定義書 §3-10-3 (5)）：
+//   残 4-7 日：⏰ あと○日で失効します（グレー系 var(--gray-400)）
+//   残 2-3 日：⏰ あと○日で失効します（オレンジ系 var(--warning)）
+//   残 1 日 ：⚠️ 明日失効します（赤系 var(--danger)）
+//   残 0 日 ：⚠️ 本日失効します（赤系・強調 var(--danger) + font-weight:700）
+//   残 < 0 ：自動失効処理の対象（表示時点では既に失効済み扱い・null を返す）
+function createExpireSubText(daysLeft){
+  if (daysLeft === null || daysLeft === undefined) return null;
+  if (daysLeft > 7 || daysLeft < 0) return null;
+  var sub = document.createElement('div');
+  sub.style.fontSize = '11px';
+  sub.style.fontWeight = '600';
+  sub.style.marginTop = '3px';
+  if (daysLeft >= 4) {
+    sub.style.color = 'var(--gray-400)';
+    sub.textContent = '⏰ あと' + daysLeft + '日で失効します';
+  } else if (daysLeft >= 2) {
+    sub.style.color = 'var(--warning)';
+    sub.textContent = '⏰ あと' + daysLeft + '日で失効します';
+  } else if (daysLeft === 1) {
+    sub.style.color = 'var(--danger)';
+    sub.textContent = '⚠️ 明日失効します';
+  } else { // daysLeft === 0
+    sub.style.color = 'var(--danger)';
+    sub.style.fontWeight = '700';
+    sub.textContent = '⚠️ 本日失効します';
+  }
+  return sub;
+}
+
+// v2.11 で追加：取り置き仕様 ④（要件定義書 §3-10-3 (2)）。
+// ホーム新セクション「📦 予約備品の準備ができました」を描画する。
+// 出現条件：自分の有効予約のうち desired_start ≤ 今日 のものが1件以上。
+// データソースは activeReservations キャッシュ（v2.10 で導入）から自分の予約を抽出。
+// 全件借り終えた / 該当なしの場合はセクション自体を display:none にする。
+// XSS 対策として全テキストは textContent で設定し innerHTML は使わない。
+function renderReadyReservations(){
+  var section = document.getElementById('ready-reservations-section');
+  var container = document.getElementById('ready-reservations-container');
+  if (!section || !container) return;
+  // 未ログイン時は非表示
+  if (!currentUser || !currentUser.email) {
+    section.style.display = 'none';
+    return;
+  }
+  // 今日の文字列を YYYY-MM-DD 形式で取得（fmtDateISO は既存）
+  var now = new Date();
+  var todayStr = fmtDateISO(now.getFullYear(), now.getMonth(), now.getDate());
+  // 自分の有効予約のうち、開始日が今日以前のもの（＝借りる準備ができている）
+  var ready = (activeReservations || []).filter(function(r){
+    return r.user_email === currentUser.email
+        && r.desired_start
+        && r.desired_start <= todayStr;
+  });
+  // 開始日昇順にソート（古いものが先＝失効が近いものが先）
+  ready.sort(function(a,b){
+    var sa = a.desired_start || '9999-99-99';
+    var sb = b.desired_start || '9999-99-99';
+    if (sa < sb) return -1;
+    if (sa > sb) return 1;
+    return 0;
+  });
+  if (ready.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  // 描画
+  container.innerHTML = '';
+  ready.forEach(function(rsv){
+    var res = (allResources || []).filter(function(r){return r.resource_id === rsv.resource_id;})[0] || {};
+    var card = document.createElement('div');
+    card.className = 'loan-card';
+    card.style.cursor = 'pointer';
+    // 緑系の枠線で「準備ができている」感を出す（要件定義書 §3-10-3 (2) 色味：緑系 --success）
+    card.style.borderColor = 'var(--success)';
+    card.style.background = 'var(--success-light)';
+
+    var iconDiv = document.createElement('div');
+    iconDiv.className = 'loan-icon';
+    iconDiv.textContent = getResourceIcon(res);
+
+    var infoDiv = document.createElement('div');
+    infoDiv.className = 'loan-info';
+    var nameDiv = document.createElement('div');
+    nameDiv.className = 'loan-name';
+    nameDiv.textContent = res.name || '（備品名不明）';
+    if (res.number) {
+      var numSpan = document.createElement('span');
+      numSpan.className = 'item-number';
+      numSpan.textContent = res.number;
+      nameDiv.appendChild(document.createTextNode(' '));
+      nameDiv.appendChild(numSpan);
+    }
+    var metaDiv = document.createElement('div');
+    metaDiv.className = 'loan-meta';
+    // 「📅 〜 ○月○日まで借りられます」
+    var endStr = rsv.desired_end || '';
+    var endLabel = '';
+    if (endStr) {
+      var ep = endStr.split('-');
+      if (ep.length === 3) {
+        endLabel = parseInt(ep[1],10) + '月' + parseInt(ep[2],10) + '日';
+      }
+    }
+    if (res.location) {
+      metaDiv.textContent = '📍 ' + res.location + (endLabel ? '   📅 〜 ' + endLabel + 'まで借りられます' : '');
+    } else {
+      metaDiv.textContent = endLabel ? '📅 〜 ' + endLabel + 'まで借りられます' : '';
+    }
+    infoDiv.appendChild(nameDiv);
+    infoDiv.appendChild(metaDiv);
+    // 失効残日数サブテキスト（要件定義書 §3-10-3 (5)）
+    var daysLeft = getDaysUntilExpire(rsv.desired_start);
+    var subEl = createExpireSubText(daysLeft);
+    if (subEl) infoDiv.appendChild(subEl);
+
+    var statusDiv = document.createElement('div');
+    statusDiv.className = 'loan-status';
+    var borrowBtn = document.createElement('button');
+    borrowBtn.className = 'return-btn';
+    borrowBtn.textContent = '借りる';
+    borrowBtn.addEventListener('click', function(e){
+      e.stopPropagation(); // カード全体タップを止める
+      // 既存 v2.9 関数 borrowFromReservation をそのまま流用
+      borrowFromReservation(rsv);
+    });
+    statusDiv.appendChild(borrowBtn);
+
+    // カード全体タップで備品詳細画面へ（マイページ予約カードと同じ挙動）
+    card.addEventListener('click', function(){
+      goToDetailFromReservation(
+        rsv,
+        (res.name||'') + (res.number ? ' '+res.number : ''),
+        getResourceIcon(res),
+        res.name||'',
+        rsv.resource_id
+      );
+    });
+
+    card.appendChild(iconDiv);
+    card.appendChild(infoDiv);
+    card.appendChild(statusDiv);
+    container.appendChild(card);
+  });
+  section.style.display = '';
 }
 
 function updateHomeStats() {
