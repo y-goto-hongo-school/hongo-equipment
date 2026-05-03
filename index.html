@@ -1243,7 +1243,18 @@ function goToDetailBorrowable(name,icon,badge,asset){
   // これによりカテゴリ一覧経由とマイページ予約カード経由で挙動が揃う。
   // self-before（開始日前の自分の予約）は本ヘルパーの対象外で、通常通り借りる/予約ボタンが出る。
   var isSelfActive = applySelfActiveReservationButton(asset);
-  document.getElementById('borrow-top-btn').style.display = isSelfActive ? 'none' : 'block';
+  // v2.11 で追加：貸出中の備品（status='loaned'）では「借りる」ボタンを抑止する。
+  // 物理的に物がない状態で貸出ボタンを押せると、貸出カレンダーが当日返却のみ可能で
+  // 表示される（問題A の renderCalendar 改修により blocked range として認識されるため）が、
+  // そもそも借りられないので「借りる」ボタンを出すべきでない。予約ボタンは出す
+  // （返却日の翌日以降を予約画面で選択可能・既存仕様）。
+  // この判定は v2.10 までは renderCalendar が blocked range を見ていなかったため
+  // 顕在化していなかったが、v2.11 で renderCalendar 改修後に「貸出中なのに借りるボタンが出て、
+  // 当日返却のみ可能と表示される」UI 不整合として現れた。
+  var detailRes = (allResources || []).filter(function(r){return r.resource_id===asset;})[0];
+  var isLoaned = !!(detailRes && detailRes.status === 'loaned');
+  var hideBorrow = isSelfActive || isLoaned;
+  document.getElementById('borrow-top-btn').style.display = hideBorrow ? 'none' : 'block';
   document.getElementById('reserve-top-btn').style.display = isSelfActive ? 'none' : 'block';
   document.getElementById('extend-top-btn').style.display='none';
   document.getElementById('reserve-notice-btn').style.display='none';
@@ -1270,7 +1281,12 @@ function goToDetailFromHistory(name,icon,badge,asset){
   var isOtherH = applyOtherReservationNotice(asset);
   // v2.11 で追加：問題B'' 対応。self-active なら「予約から借りる」ボタンを出す。
   var isSelfActiveH = applySelfActiveReservationButton(asset);
-  document.getElementById('borrow-top-btn').style.display = isSelfActiveH ? 'none' : 'block';
+  // v2.11 で追加：貸出中の備品（status='loaned'）では「借りる」ボタンを抑止する。
+  // 過去に借りた備品が現在他者に貸出中のケースに対応する。詳細は goToDetailBorrowable のコメント参照。
+  var detailResH = (allResources || []).filter(function(r){return r.resource_id===asset;})[0];
+  var isLoanedH = !!(detailResH && detailResH.status === 'loaned');
+  var hideBorrowH = isSelfActiveH || isLoanedH;
+  document.getElementById('borrow-top-btn').style.display = hideBorrowH ? 'none' : 'block';
   document.getElementById('reserve-top-btn').style.display = isSelfActiveH ? 'none' : 'block';
   document.getElementById('extend-top-btn').style.display='none';
   document.getElementById('reserve-notice-btn').style.display='none';
