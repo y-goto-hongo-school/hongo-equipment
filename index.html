@@ -1009,7 +1009,34 @@ function showScreen(name){
       var nameEl=document.getElementById('confirm-user-name');
       if(nameEl) nameEl.textContent=currentUser.name;
     }
+    // v2.11 で追加：取り置き仕様の整合（問題A・要件定義書 §3-10-3-A 補足）。
+    // 他者の予約・他者の貸出・自分の予約・自分の貸出をすべて blocked range として
+    // 読み込んでから renderCalendar を呼ぶことで、他者の予約期間内の日付を
+    // 返却日として選べないようにする。
+    // 自分の予約期間中の短期貸出が許容できなくなるが、これは仕様上問題ない：
+    // (a) self-active（予約期間中）は問題B''の対応で「予約から借りる」動線になり、
+    //     borrow-confirm 画面自体に到達しない。
+    // (b) self-before（開始日前）の場合、予約開始日の前日まで（最大）借りられる
+    //     ため「短期貸出したい」ニーズは充足される。返却日として予約開始日以降を
+    //     選ぶと、5/10 朝に「貸出中→予約消化」が同居して運用上意味不明になるため
+    //     ブロックして正しい。
+    // 念のため renderCalendar を即時にも一度呼んで「読み込み中の空カレンダー」状態を回避する。
+    rsvBlockedRanges = []; // 前回の読み込み内容を一旦クリア（別備品の値が残らないように）
     renderCalendar();
+    if (S.currentAsset) {
+      loadBlockedRanges(S.currentAsset, function(){
+        renderCalendar();
+        // 既に選択済みの返却日が新しいブロック範囲と被ったら選択解除（フェイルセーフ）
+        if (S.selectedDueDate && rangeOverlapsBlocked(today, S.selectedDueDate)) {
+          S.selectedDueDate = null;
+          var dispEl = document.getElementById('selected-date-display');
+          if (dispEl) dispEl.textContent = '返却日を選択してください';
+          var subBtn = document.getElementById('borrow-submit-btn');
+          if (subBtn) subBtn.disabled = true;
+          renderCalendar();
+        }
+      });
+    }
   }
 }
 function setNav(name){
@@ -1101,6 +1128,30 @@ function applyOtherReservationNotice(asset){
   return true;
 }
 
+// v2.11 で追加：取り置き仕様 問題B'' 対応（要件定義書 §3-10-3-A 補足）。
+// 指定備品に対する「自分の予約取り置き中（self-active）」検出時の制御を一元化する。
+// goToDetailBorrowable / goToDetailFromHistory から呼ばれ、state が 'self-active' のとき
+// reservation-borrow-btn を表示し、S.currentReservation を該当予約にセットする。
+// これにより、利用者がカテゴリ一覧経由で備品詳細を開いた場合と、マイページ予約カード
+// 経由で開いた場合とで挙動が揃う（マイページ経由の goToDetailFromReservation と同等）。
+// 戻り値: true = 自分の取り置き中（呼び出し側で通常の借りる/予約ボタンを出さない判断に使う）
+//         false = self-active ではない（self-before や通常状態は呼び出し側のデフォルト挙動）
+// 注: self-before は本ヘルパーの対象外。利用者が「予約は未来日だが今日から短期で借りたい」
+// ニーズがあるため、self-before では通常の貸出/予約ボタンをそのまま出す（v2.10 までの挙動）。
+function applySelfActiveReservationButton(asset){
+  var rsvBorrowBtn = document.getElementById('reservation-borrow-btn');
+  // 既定でいったん非表示にし、currentReservation もクリアしてから判定する
+  if (rsvBorrowBtn) rsvBorrowBtn.style.display = 'none';
+  S.currentReservation = null;
+  if (!asset) return false;
+  var rs = getReservationStateForResource(asset);
+  if (rs.state !== 'self-active' || !rs.reservation) return false;
+  // 該当予約を currentReservation にセットして doBorrowFromReservation が機能するようにする
+  S.currentReservation = rs.reservation;
+  if (rsvBorrowBtn) rsvBorrowBtn.style.display = 'block';
+  return true;
+}
+
 // 読み取り専用（ホーム・マイページ現在貸出から）：借りるボタンなし、延長ボタンあり
 function goToDetailReadOnly(name,icon,badge,asset,loanId){
   S.fromBorrow=false; S.fromHistory=false;
@@ -1181,17 +1232,24 @@ function goToDetailBorrowable(name,icon,badge,asset){
   if (rsvBorrowBtn1) rsvBorrowBtn1.style.display = 'none';
   S.currentReservation = null;
   setDetailContent(name,icon,badge,asset);
-  // v2.11 で追加：他者の予約取り置き中（state='other'）なら、貸出ボタンのみを抑止する。
-  // 予約ボタンは出す（要件定義書 §9-2-2 (3) のバッジ「🪧 取り置き中・予約可」の通り、
-  // 取り置き期間外の日付なら予約は可能なため。具体的な期間外判定は予約画面側の
-  // loadBlockedRanges + rangeOverlapsBlocked が既存ロジックで担保している）。
+  // v2.11 で追加：他者の予約取り置き中（state='other'）の通知を表示する。
+  // 通知の表示と「借りる」ボタンの表示は両立させる：他者予約の前日まで（=当日返却のみ等）の
+  // 短期貸出は許容するため、borrow-top-btn は抑止しない。renderCalendar 側で
+  // 「最初にぶつかるブロックの前日まで」を上限として日付選択を制限する。
+  // 予約ボタンも出す（要件定義書 §9-2-2 (3) のバッジ「🪧 取り置き中・予約可」と整合）。
   var isOther = applyOtherReservationNotice(asset);
-  document.getElementById('borrow-top-btn').style.display = isOther ? 'none' : 'block';
-  document.getElementById('reserve-top-btn').style.display='block';
+  // v2.11 で追加：問題B'' 対応。自分の予約取り置き中（state='self-active'）なら、
+  // 通常の借りる/予約ボタンを抑止し「📦 予約からこの備品を借りる」ボタンを出す。
+  // これによりカテゴリ一覧経由とマイページ予約カード経由で挙動が揃う。
+  // self-before（開始日前の自分の予約）は本ヘルパーの対象外で、通常通り借りる/予約ボタンが出る。
+  var isSelfActive = applySelfActiveReservationButton(asset);
+  document.getElementById('borrow-top-btn').style.display = isSelfActive ? 'none' : 'block';
+  document.getElementById('reserve-top-btn').style.display = isSelfActive ? 'none' : 'block';
   document.getElementById('extend-top-btn').style.display='none';
   document.getElementById('reserve-notice-btn').style.display='none';
-  // 予約モードで来た場合はそのまま予約画面へ（他者取り置き中も予約画面自体は開ける）
-  if(S._reserveMode){
+  // 予約モードで来た場合はそのまま予約画面へ（他者取り置き中も予約画面自体は開ける）。
+  // ただし self-active のときは予約モードでも遷移しない（既に自分の予約があるため）。
+  if(S._reserveMode && !isSelfActive){
     showScreen('item-detail');
     setTimeout(function(){ goToReserveConfirm(); }, 50);
   } else {
@@ -1207,10 +1265,13 @@ function goToDetailFromHistory(name,icon,badge,asset){
   if (rsvBorrowBtn2) rsvBorrowBtn2.style.display = 'none';
   S.currentReservation = null;
   setDetailContent(name,icon,badge,asset);
-  // v2.11 で追加：他者の予約取り置き中なら、再貸出ボタンのみを抑止。予約ボタンは出す。
+  // v2.11 で追加：他者の予約取り置き中の通知を表示。borrow-top-btn は抑止せず、
+  // 当日返却等の短期貸出を renderCalendar 側で許容する。
   var isOtherH = applyOtherReservationNotice(asset);
-  document.getElementById('borrow-top-btn').style.display = isOtherH ? 'none' : 'block';
-  document.getElementById('reserve-top-btn').style.display='block';
+  // v2.11 で追加：問題B'' 対応。self-active なら「予約から借りる」ボタンを出す。
+  var isSelfActiveH = applySelfActiveReservationButton(asset);
+  document.getElementById('borrow-top-btn').style.display = isSelfActiveH ? 'none' : 'block';
+  document.getElementById('reserve-top-btn').style.display = isSelfActiveH ? 'none' : 'block';
   document.getElementById('extend-top-btn').style.display='none';
   document.getElementById('reserve-notice-btn').style.display='none';
   showScreen('item-detail');
@@ -1236,6 +1297,46 @@ function detailBack(){
 function renderCalendar(){
   const y=S.calYear,m=S.calMonth,today=new Date();today.setHours(0,0,0,0);
   var maxDate=new Date(today);maxDate.setDate(today.getDate()+MAX_LOAN_DAYS);maxDate.setHours(0,0,0,0);
+  // v2.11 で追加：取り置き仕様の整合（問題A・要件定義書 §3-10-3-A 補足）。
+  // 貸出カレンダーで「最初にぶつかるブロック範囲の前日」を上限とする。
+  // rsvBlockedRanges は loadBlockedRanges(resourceId, {excludeOwnReservations:true}, callback)
+  // で事前に読み込まれている前提（borrow-confirm 画面遷移時に呼ぶ）。
+  // 自分の予約は除外済みなので、self-before の短期貸出は阻害されない。
+  // 開始日（today）以降にあるブロック範囲のうち start が最も早いものを探し、
+  // その前日を実効的な maxDate に上書きする。
+  var firstBlockStart = null;
+  // フェイルセーフ：rsvBlockedRanges が var hoisting で undefined の段階でも
+  // 動作するよう、ローカル変数で受け直す（init() からの初回 renderCalendar() 対応）
+  var blocks = (typeof rsvBlockedRanges !== 'undefined' && rsvBlockedRanges) ? rsvBlockedRanges : [];
+  for (var bi = 0; bi < blocks.length; bi++) {
+    var br = blocks[bi];
+    if (br.end.getTime() < today.getTime()) continue; // 過去のブロックは無視
+    var blockStart = br.start.getTime() < today.getTime() ? today : br.start;
+    if (blockStart.getTime() <= today.getTime()) {
+      // 今日の時点で既にブロック中。当日返却のみ可能（maxDate=today）にする。
+      if (firstBlockStart === null || today.getTime() < firstBlockStart.getTime()) {
+        firstBlockStart = new Date(today);
+      }
+    } else {
+      if (firstBlockStart === null || blockStart.getTime() < firstBlockStart.getTime()) {
+        firstBlockStart = new Date(blockStart);
+      }
+    }
+  }
+  // 最初にぶつかるブロックの前日を上限とする（ブロック開始日と同日返却は不可）
+  if (firstBlockStart !== null) {
+    var effectiveMax = new Date(firstBlockStart);
+    effectiveMax.setDate(effectiveMax.getDate() - 1);
+    effectiveMax.setHours(0,0,0,0);
+    // effectiveMax が today より前になることはあるが（今日が既にブロック中の場合）、
+    // その場合は当日返却のみ可能なので effectiveMax = today にクリップする。
+    if (effectiveMax.getTime() < today.getTime()) {
+      effectiveMax = new Date(today);
+    }
+    if (effectiveMax.getTime() < maxDate.getTime()) {
+      maxDate = effectiveMax;
+    }
+  }
   document.getElementById('cal-month-label').textContent=`${y}年 ${m+1}月`;
   const firstDay=new Date(y,m,1).getDay(),daysInMonth=new Date(y,m+1,0).getDate();
   const grid=document.getElementById('cal-days');grid.innerHTML='';
@@ -1270,6 +1371,27 @@ function selectDay(y,m,d){
 function completeBorrow(){
   var today=new Date();today.setHours(0,0,0,0);
   var due=S.selectedDueDate;
+  // v2.11 で追加：取り置き仕様の整合（問題A）二段防御。
+  // カレンダー側で disabled に出来ていない競合（同時刻に他者が予約成立した等）に
+  // 備え、貸出確定の直前に rangeOverlapsBlocked で最終チェックする。
+  // ヒットした場合はカレンダー側を再描画して選択を解除する。
+  if (due && rangeOverlapsBlocked(today, due)) {
+    alert('選択した返却日が他の予約・貸出と重なるため、貸出できません。返却日を選び直してください。');
+    S.selectedDueDate = null;
+    var dispEl = document.getElementById('selected-date-display');
+    if (dispEl) dispEl.textContent = '返却日を選択してください';
+    var subBtn = document.getElementById('borrow-submit-btn');
+    if (subBtn) subBtn.disabled = true;
+    // 最新の blocked range を再取得してから再描画する
+    if (S.currentAsset) {
+      loadBlockedRanges(S.currentAsset, function(){
+        renderCalendar();
+      });
+    } else {
+      renderCalendar();
+    }
+    return;
+  }
   var diff=Math.round((due-today)/864e5);
   var msg;
   if(diff===0)msg='本日返却の備品です。業務終了前に必ずご返却をお願いします。';
