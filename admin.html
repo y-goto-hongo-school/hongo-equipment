@@ -537,15 +537,24 @@ tr:hover td{background:var(--cobalt-ghost);}
           <div class="page-title">予約管理</div>
           <div class="page-subtitle">教職員からの予約申請を確認・承認・却下できます</div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <select class="form-select" id="rsv-filter-status" style="width:130px" onchange="filterReservations()">
             <option value="">すべて</option>
             <option value="pending">申請中</option>
             <option value="approved">承認済み</option>
             <option value="fulfilled">貸出済</option>
             <option value="cancelled">取消済み</option>
+            <!-- v2.12 で追加：⑧ 失効予定フィルタ（要件定義書 §3-10-3-B (3)）。
+                 status='approved' AND desired_start + 7日 < 今日 の予約を抽出する。
+                 フロント側のフィルタロジックで getDaysUntilExpireAdmin() を使う。 -->
+            <option value="expiring">失効予定</option>
           </select>
           <input class="search-input" id="rsv-search" type="text" placeholder="氏名・備品名で検索…" oninput="filterReservations()">
+          <!-- v2.12 で追加：⑧ 一括失効ボタン（要件定義書 §3-10-3-B (3)）。
+               「失効予定」フィルタ選択時のみ表示。件数 0 件時は非表示。
+               既存の btn / btn-danger クラスを流用し、新規 CSS は追加していない。 -->
+          <button class="btn btn-danger" id="rsv-bulk-expire-btn" type="button"
+                  style="display:none" onclick="bulkExpireReservations()">⚠️ 失効候補 0件 を一括失効</button>
         </div>
       </div>
       <div class="table-card">
@@ -1541,7 +1550,10 @@ function loadReservationsAdmin() {
       if (badge) { badge.textContent = pendingCount; badge.style.display = pendingCount > 0 ? '' : 'none'; }
       var countEl = document.getElementById('reservations-count');
       if (countEl) countEl.textContent = '予約一覧（' + allReservationsAdmin.length + '件）';
-      renderReservationsAdmin(allReservationsAdmin);
+      // v2.12 で改修：renderReservationsAdmin(allReservationsAdmin) の直接呼び出しから
+      // filterReservations() 経由に変更。これにより一括失効後の再描画でも現在のフィルタ条件
+      // （特に「失効予定」選択中）が維持され、一括失効ボタンの表示状態も同時に更新される。
+      filterReservations();
     })
     .catch(function(err) {
       console.error('予約取得エラー:', err);
@@ -1552,8 +1564,19 @@ function loadReservationsAdmin() {
 function filterReservations() {
   var status = document.getElementById('rsv-filter-status').value;
   var q = (document.getElementById('rsv-search').value || '').toLowerCase();
+  // v2.12 で追加：⑧ 失効予定フィルタ（要件定義書 §3-10-3-B (3)）。
+  // 'expiring' 選択時は status='approved' AND desired_start + 7日 < 今日 を抽出する。
+  // 通常の status フィルタとは排他で、'expiring' のときは status のローカル変数を空にして
+  // 既存の status 比較を素通りさせ、追加の expiring 条件で絞り込む構造にする。
+  var isExpiringFilter = (status === 'expiring');
   var filtered = allReservationsAdmin.filter(function(r) {
-    if (status && r.status !== status) return false;
+    if (isExpiringFilter) {
+      // 失効予定の判定（status='approved' AND desired_start + 7日 < 今日）
+      if (r.status !== 'approved') return false;
+      if (!isExpired(r.desired_start)) return false;
+    } else {
+      if (status && r.status !== status) return false;
+    }
     if (q) {
       var name = (r.resources ? r.resources.name : '').toLowerCase();
       var user = (r.user_name || r.user_email || '').toLowerCase();
@@ -1561,7 +1584,90 @@ function filterReservations() {
     }
     return true;
   });
+  // 一括失効ボタンの表示制御（失効予定フィルタ選択時のみ表示・件数を動的更新）
+  updateBulkExpireBtn(isExpiringFilter, filtered);
   renderReservationsAdmin(filtered);
+}
+
+// v2.12 で追加：⑧ 用ヘルパー（要件定義書 §3-10-3-B (3)）。
+// desired_start（YYYY-MM-DD 文字列）を受け取り、desired_start + 7日 < 今日 なら true。
+// index.html の getDaysUntilExpire と計算ロジックは完全同一だが、admin.html には
+// 取り置き仕様の各種表示は持ち込まない設計のため、必要最小限の判定関数のみ実装する。
+// 引き継ぎ文書 v2.11 §9-3 ⑧「admin.html はそもそも activeReservations キャッシュを持たない設計」
+// の方針を踏襲。
+function isExpired(desiredStartStr){
+  if (!desiredStartStr) return false;
+  var parts = desiredStartStr.split('-');
+  if (parts.length !== 3) return false;
+  var startDate = new Date(parseInt(parts[0],10), parseInt(parts[1],10)-1, parseInt(parts[2],10));
+  startDate.setHours(0,0,0,0);
+  var today = new Date(); today.setHours(0,0,0,0);
+  // 失効予定日 = 開始日 + 7日。失効予定日 < 今日 のとき失効対象。
+  // = 「開始日 + 7日が今日より前」=「8日以上経過した」状態。
+  var expireDate = new Date(startDate); expireDate.setDate(expireDate.getDate() + 7);
+  return expireDate.getTime() < today.getTime();
+}
+
+// v2.12 で追加：⑧ 一括失効ボタンの表示制御（要件定義書 §3-10-3-B (3)）。
+// 失効予定フィルタ選択時のみ表示。件数 0 件時は非表示にする。
+function updateBulkExpireBtn(isExpiringFilter, filtered){
+  var btn = document.getElementById('rsv-bulk-expire-btn');
+  if (!btn) return;
+  if (!isExpiringFilter || !filtered || filtered.length === 0) {
+    btn.style.display = 'none';
+    return;
+  }
+  btn.style.display = '';
+  btn.textContent = '⚠️ 失効候補 ' + filtered.length + '件 を一括失効';
+}
+
+// v2.12 で追加：⑧ 一括失効処理（要件定義書 §3-10-3-B (3)）。
+// 表示中の失効予定フィルタ結果に対して IN 句 UPDATE で status='cancelled' に変更する。
+// 引き継ぎ文書 v2.11 §9-3 ⑧ の指示通り、admin.html では loadActiveReservations は
+// 呼ばない（admin.html は activeReservations キャッシュを持たない設計）。
+function bulkExpireReservations(){
+  // 現在のフィルタ条件を再評価して対象を確定（ボタン押下から実行までの間に
+  // 別画面遷移等で状態が変わっている可能性に備える二段防御）
+  var status = document.getElementById('rsv-filter-status').value;
+  if (status !== 'expiring') return;
+  var q = (document.getElementById('rsv-search').value || '').toLowerCase();
+  var targets = allReservationsAdmin.filter(function(r){
+    if (r.status !== 'approved') return false;
+    if (!isExpired(r.desired_start)) return false;
+    if (q) {
+      var name = (r.resources ? r.resources.name : '').toLowerCase();
+      var user = (r.user_name || r.user_email || '').toLowerCase();
+      if (!name.includes(q) && !user.includes(q)) return false;
+    }
+    return true;
+  });
+  if (targets.length === 0) {
+    showToast('失効候補がありません', 'error');
+    return;
+  }
+  // 確認ダイアログ（要件定義書 §3-10-3-B (3) の指定文言）
+  if (!confirm('失効候補 ' + targets.length + '件 を一括で失効処理しますか？ この操作は取り消せません。')) return;
+
+  // IN 句で 1 リクエスト UPDATE。reservation_id を encodeURIComponent でエスケープ。
+  var idList = targets.map(function(r){
+    return encodeURIComponent(r.reservation_id);
+  }).join(',');
+  sbPatch('reservations?reservation_id=in.(' + idList + ')', {
+    status: 'cancelled',
+    updated_at: new Date().toISOString()
+  })
+    .then(function(){
+      showToast('✅ ' + targets.length + '件 の予約を失効処理しました', 'success');
+      allReservationsAdmin = []; // キャッシュクリア
+      loadReservationsAdmin();
+      // 注：admin.html では loadActiveReservations は呼ばない
+      // （引き継ぎ文書 v2.11 §9-3 ⑧・要件定義書 §3-10-3-B (3) の方針）。
+    })
+    .catch(function(err){
+      // 内部情報・スタックトレースをユーザーに見せない方針（§0 セキュリティ要件 5）。
+      console.error('一括失効エラー:', err);
+      showToast('エラーが発生しました', 'error');
+    });
 }
 
 function renderReservationsAdmin(data) {
