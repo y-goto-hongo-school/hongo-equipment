@@ -1879,7 +1879,11 @@ function rangeOverlapsBlocked(start, end){
 /* 予約データを読み込む */
 var allReservations=[];
 function loadMyReservations(email){
-  sbFetch('reservations?user_email=eq.'+encodeURIComponent(email)+'&status=in.(pending,approved)&order=desired_start.asc')
+  // v2.12 で改修：Promise を return するように変更（⑦ expireOldReservations を
+  // myReservations のロード完了後に呼ぶため。引き継ぎ文書 v2.11 §9-3 ⑦ の
+  // 「myReservations のロード完了後に呼ぶこと」の要件を満たす最小改修）。
+  // 既存の呼び出し側は戻り値を使っていないため互換性は保たれる。
+  return sbFetch('reservations?user_email=eq.'+encodeURIComponent(email)+'&status=in.(pending,approved)&order=desired_start.asc')
     .then(function(data){
       myReservations=data||[];
       allReservations=data||[];
@@ -1931,6 +1935,17 @@ function renderMypageReservations(){
       readySub.textContent = '📦 借りる準備ができました';
       infoDiv.appendChild(readySub);
     }
+
+    // v2.12 で追加：⑥ マイページ予約カード拡張（要件定義書 §3-10-3-B (1)）。
+    // 失効残日数のサブテキストを追加表示する。共通ヘルパー createExpireSubText
+    // （v2.11 で先行実装済み）を呼ぶだけの最小差分。閾値はホーム新セクション（F-28）
+    // と完全に同一で、createExpireSubText で一元化されている。
+    // 残 4-7 日：グレー / 残 2-3 日：オレンジ / 残 1 日：赤 / 残 0 日：赤強調 / それ以外：null
+    // null のときはサブテキストを出さない（残8日以上 = 開始日まで間がある場合、または
+    // 既に失効すべき状態 = ⑦ 自動失効処理の対象）。
+    var daysLeft = getDaysUntilExpire(rsv.desired_start);
+    var expireSub = createExpireSubText(daysLeft);
+    if (expireSub) infoDiv.appendChild(expireSub);
 
     var statusDiv=document.createElement('div');statusDiv.className='loan-status';
     var badge=document.createElement('span');badge.className='badge';
@@ -2487,12 +2502,20 @@ function loginSuccess(user) {
   Promise.all([loadResources(), loadCategories()])
     .then(function() {
       loadMyLoans(user.email);
-      loadMyReservations(user.email); // F-17: 予約データ読み込み
+      // v2.12 で改修：loadMyReservations が Promise を return するようになったため、
+      // その完了後に ⑦ expireOldReservations を呼ぶ。引き継ぎ文書 v2.11 §9-3 ⑦ の
+      // 「myReservations のロード完了後に呼ぶこと」要件を満たす。
+      // loadActiveReservations は従来どおり並列実行で良い（失効処理内で再度呼ぶため）。
+      loadMyReservations(user.email).then(function(){
+        expireOldReservations();
+      });
       loadActiveReservations(); // v2.10: 取り置き仕様用のアクティブ予約キャッシュ
     })
     .catch(function() {
       loadMyLoans(user.email);
-      loadMyReservations(user.email);
+      loadMyReservations(user.email).then(function(){
+        expireOldReservations();
+      });
       loadActiveReservations(); // v2.10: エラー時もキャッシュ取得は試行
     });
 
@@ -3367,6 +3390,93 @@ function createExpireSubText(daysLeft){
     sub.textContent = '⚠️ 本日失効します';
   }
   return sub;
+}
+
+// v2.12 で追加：⑦ 自動失効処理（要件定義書 §3-10-3-B (2)・引き継ぎ文書 v2.11 §9-3 ⑦）。
+// 本人ログイン時に自分の予約のうち失効対象（desired_start + 7日 < 今日）を
+// 一括 cancelled に UPDATE する処理。B' 案（本人ログイン時 + 管理者手動失効）の
+// 「本人ログイン時」側の実装。管理者手動失効は admin.html ⑧ で実装。
+//
+// 対象判定：myReservations.filter(r => getDaysUntilExpire(r.desired_start) < 0
+//                                       && r.user_email === currentUser.email
+//                                       && r.status === 'approved')
+//   - getDaysUntilExpire < 0 は引き継ぎ文書 v2.11 §9-3 ⑦ の
+//     「daysFromToday(r.desired_start) + 7 < 0」と同じ意味（desired_start + 7 < today）。
+//   - status='approved' のみが失効対象。pending（管理者承認待ち）は別ドメインで扱うため除外。
+//   - user_email チェックは loadMyReservations のクエリで既に絞られているが
+//     念のため二重防御（共有端末・複数アカウント切替時の safety）。
+//
+// キャッシュ更新：UPDATE 完了後に loadActiveReservations() を呼ぶ
+// （引き継ぎ文書 §9-3 ⑦ 必須要件）。これによりホーム新セクション・カテゴリ一覧
+// バッジ・ベルバッジ件数が即時最新化される。
+//
+// 通知：alert（トースト UI は新設せず CSS 変更を伴わないようにする方針：
+// 要件定義書 §3-10-3-B (2)・v2.11 セッションでユーザーと確定）。
+//   - 1 件：「○月○日に予約していた『○○』が、開始日から1週間貸出されなかったため失効しました」
+//   - 複数件：「以下の予約が、開始日から1週間貸出されなかったため失効しました：・○月○日 備品名…」
+//
+// IN 句 UPDATE：reservation_id=in.(id1,id2,...) で 1 リクエスト UPDATE。
+// PostgREST の文法で SQL インジェクションは sbPatch 内のクエリ文字列構築に依存するため、
+// 各 ID は encodeURIComponent でエスケープする。
+//
+// 戻り値：処理完了 Promise。エラー時もチェーンが切れないよう catch 内でログのみ。
+function expireOldReservations(){
+  if (!currentUser || !currentUser.email) return Promise.resolve();
+  if (!myReservations || myReservations.length === 0) return Promise.resolve();
+  // 失効対象を抽出
+  var targets = myReservations.filter(function(r){
+    if (!r || r.user_email !== currentUser.email) return false;
+    if (r.status !== 'approved') return false; // pending は対象外
+    var d = getDaysUntilExpire(r.desired_start);
+    return d !== null && d < 0;
+  });
+  if (targets.length === 0) return Promise.resolve();
+  // IN 句で 1 リクエスト UPDATE。各 ID を encodeURIComponent でエスケープ。
+  var idList = targets.map(function(r){
+    return encodeURIComponent(r.reservation_id);
+  }).join(',');
+  return sbPatch('reservations?reservation_id=in.(' + idList + ')', { status: 'cancelled' })
+    .then(function(){
+      // 失効した備品名・開始日を集めて alert メッセージを組み立てる
+      var items = targets.map(function(r){
+        var resName = '備品';
+        var found = allResources.filter(function(x){ return x.resource_id === r.resource_id; })[0];
+        if (found && found.name) resName = found.name;
+        var mdLabel = '';
+        if (r.desired_start) {
+          var parts = r.desired_start.split('-');
+          if (parts.length === 3) {
+            var mNum = parseInt(parts[1], 10);
+            var dNum = parseInt(parts[2], 10);
+            if (!isNaN(mNum) && !isNaN(dNum)) mdLabel = mNum + '月' + dNum + '日';
+          }
+        }
+        return { name: resName, md: mdLabel };
+      });
+      var msg;
+      if (items.length === 1) {
+        // 個別文
+        msg = items[0].md + 'に予約していた『' + items[0].name
+            + '』が、開始日から1週間貸出されなかったため失効しました';
+      } else {
+        // 列挙形式
+        msg = '以下の予約が、開始日から1週間貸出されなかったため失効しました：';
+        items.forEach(function(it){
+          msg += '\n・' + it.md + ' ' + it.name;
+        });
+      }
+      alert(msg);
+      // キャッシュ更新（引き継ぎ文書 §9-3 ⑦ 必須要件）。
+      // myReservations も再取得しておかないと、次回失効処理で同じレコードを
+      // 重複対象にしてしまう恐れがあるため両方更新する。
+      loadActiveReservations();
+      loadMyReservations(currentUser.email);
+    })
+    .catch(function(err){
+      // 内部情報・スタックトレースをユーザーに見せない方針（§0 セキュリティ要件 5）。
+      // 管理者向けに console.error のみ残す。失効処理が落ちてもログイン自体は継続。
+      console.error('予約自動失効エラー:', err);
+    });
 }
 
 // v2.11 で追加：取り置き仕様 ④（要件定義書 §3-10-3 (2)）。
