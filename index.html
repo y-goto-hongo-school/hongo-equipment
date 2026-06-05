@@ -1971,7 +1971,9 @@ function renderMypageReservations(){
     cancelBtn.addEventListener('click',function(e){
       e.stopPropagation(); // v2.9 で追加：カード全体のタップを止める
       if(!confirm('「'+( res.name||'この備品')+'」の予約を取り消しますか？'))return;
-      sbPatch('reservations?reservation_id=eq.'+encodeURIComponent(rsv.reservation_id),{status:'cancelled'})
+      // v2.13 で追加：updated_at を付与（status を cancelled に変える全 3 経路
+      // ＝利用者取消・自動失効⑦・管理者一括失効⑧ で updated_at の扱いを統一する）。
+      sbPatch('reservations?reservation_id=eq.'+encodeURIComponent(rsv.reservation_id),{status:'cancelled', updated_at: new Date().toISOString()})
         .then(function(){
           loadMyReservations(currentUser.email);
           loadActiveReservations(); // v2.10: 取り置き仕様用キャッシュを更新（予約が減ったため）
@@ -2004,6 +2006,21 @@ function renderMypageReservations(){
 // onSuccess コールバックで呼び出し元が成功時の画面遷移を制御できる。
 function borrowFromReservation(rsv, onSuccess){
   if(!currentUser){alert('ログイン情報がありません。再ログインしてください。');return;}
+  // v2.13 で追加：延滞中・貸出上限到達時は予約からの直接貸出も禁止する。
+  // 通常貸出フロー goBorrow() は冒頭で if(S.hasOverdue||S.hasLoanLimit)return; の
+  // ガードを持つが、予約からの直接貸出（borrowFromReservation）にはガードが無く、
+  // 延滞中でもマイページ予約カード・ホーム ready セクション・備品詳細「予約から借りる」
+  // から予約品を借りられてしまう不具合があった（全入口がこの関数を通る）。
+  // goBorrow と同じ判定をここに一元化する。延滞・上限はホーム画面のバナーで
+  // 既に告知済みだが、予約カードのボタンは別画面から押されるため alert で理由を明示する。
+  if(S.hasOverdue){
+    alert('返却期限を過ぎた備品があります。\n返却が完了するまで、予約品を含め新規の貸出はできません。');
+    return;
+  }
+  if(S.hasLoanLimit){
+    alert('同時貸出の上限に達しています。\n返却後に、予約品を含め新たに借りることができます。');
+    return;
+  }
   if(!rsv || !rsv.resource_id || !rsv.desired_end){
     alert('予約データが不正です。');
     return;
@@ -3435,7 +3452,13 @@ function expireOldReservations(){
   var idList = targets.map(function(r){
     return encodeURIComponent(r.reservation_id);
   }).join(',');
-  return sbPatch('reservations?reservation_id=in.(' + idList + ')', { status: 'cancelled' })
+  // v2.13 で追加：updated_at を付与する。admin.html の一括失効（⑧ bulkExpireReservations）が
+  // updated_at を更新するのに対し、本人ログイン時の自動失効（⑦）は付与していなかった。
+  // 同じ「失効」なのに利用者起因（⑦）と管理者起因（⑧）で updated_at の更新有無が
+  // 食い違うと、(a) 失効日時の追跡（いつ失効したかの問い合わせ対応）、
+  // (b) ⑦ と ⑧ の捕捉比率の検証、(c) 将来のメール通知での updated_at 増分処理
+  // が成立しなくなるため、両者を揃える。
+  return sbPatch('reservations?reservation_id=in.(' + idList + ')', { status: 'cancelled', updated_at: new Date().toISOString() })
     .then(function(){
       // 失効した備品名・開始日を集めて alert メッセージを組み立てる
       var items = targets.map(function(r){
